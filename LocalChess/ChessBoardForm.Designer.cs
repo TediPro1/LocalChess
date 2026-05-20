@@ -39,24 +39,27 @@
             boardPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             boardPanel.Dock = DockStyle.Fill;
             boardPanel.Location = new Point(0, 0);
+            boardPanel.Margin = new Padding(3, 2, 3, 2);
             boardPanel.Name = "boardPanel";
             boardPanel.RowCount = 1;
             boardPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
             boardPanel.RowStyles.Add(new RowStyle(SizeType.Percent, 50F));
-            boardPanel.Size = new Size(782, 753);
+            boardPanel.Size = new Size(684, 565);
             boardPanel.TabIndex = 0;
             // 
             // ChessBoardForm
             // 
-            AutoScaleDimensions = new SizeF(8F, 20F);
+            AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(782, 753);
+            ClientSize = new Size(684, 565);
             Controls.Add(boardPanel);
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
+            Margin = new Padding(3, 2, 3, 2);
             MaximizeBox = false;
             Name = "ChessBoardForm";
             Text = "Game";
+            FormClosed += ChessBoardForm_FormClosed;
             ResumeLayout(false);
         }
 

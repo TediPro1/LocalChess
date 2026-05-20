@@ -11,7 +11,7 @@ namespace LocalChess
         static void Main()
         {
             ApplicationConfiguration.Initialize();
-            Application.Run(new ChessBoardForm());
+            Application.Run(new Main_menu());
         }
     }
 }

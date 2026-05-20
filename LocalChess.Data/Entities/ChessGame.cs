@@ -16,6 +16,7 @@ namespace LocalChess.Data.Entities
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
         public PieceType PromotionChoice { get; set; } = PieceType.Queen;
         public Dictionary<string, int> positionHistory { get; private set; } = new();
+        public event Action? BoardChanged;
 
         public ChessGame()
         {
@@ -45,6 +46,8 @@ namespace LocalChess.Data.Entities
             bool isCastling = IsCastlingMove(piece, from, to);
 
             ExecuteMove(from, to, isEnPassant, isCastling);
+
+            BoardChanged?.Invoke();
 
             LastMoveFrom = from;
             LastMoveTo = to;

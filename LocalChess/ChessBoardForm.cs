@@ -21,14 +21,32 @@ namespace LocalChess.View
             InitializeComponent();
             CreateBoard();
             game.Board.SetupStartingPosition();
+            game.BoardChanged += RenderBoard;
             RenderBoard();
         }
         private readonly ChessGame game = new ChessGame();
         public Panel[,] Squares = new Panel[8, 8];
         private Point? selectedSquare = null;
         private List<Point> highlightedMoves = new();
+
+        private readonly GameLobby lobby;
+        private readonly PieceColor playerColor;
+        public ChessBoardForm(GameLobby lobby, PieceColor playerColor)
+        {
+            InitializeComponent();
+
+            this.lobby = lobby;
+            this.playerColor = playerColor;
+
+            game = lobby.Game;
+            game.BoardChanged += RenderBoard;
+
+            CreateBoard();
+            RenderBoard();
+        }
         private void CreateBoard()
         {
+            Text = $"LocalChess - {lobby.Name} ({playerColor})";
             boardPanel.Controls.Clear();
 
             boardPanel.RowCount = 8;
@@ -113,81 +131,72 @@ namespace LocalChess.View
 
             ChessPiece? clickedPiece = game.Board.GetPiece(position.X, position.Y);
 
-            if (selectedSquare != null &&
-                clickedPiece != null &&
-                clickedPiece.Color == game.CurrentTurn)
-            {
-                selectedSquare = position;
-                highlightedMoves = game.GetLegalMoves(position);
-
-                RenderBoard();
-                HighlightSelectedSquare(position);
-                HighlightLegalMoves();
-
+            // Not your turn? No touching.
+            if (game.CurrentTurn != playerColor)
                 return;
-            }
+
             if (selectedSquare == null)
             {
-                ChessPiece? piece = game.Board.GetPiece(position.X, position.Y);
-
-                if (piece == null)
+                if (clickedPiece == null)
                     return;
 
-                selectedSquare = position;
-                highlightedMoves = game.GetLegalMoves(position);
+                if (clickedPiece.Color != playerColor)
+                    return;
 
-                RenderBoard();
-                HighlightSelectedSquare(position);
-                HighlightLegalMoves();
+                SelectSquare(position);
+                return;
             }
-            else
+
+            if (clickedPiece != null && clickedPiece.Color == playerColor)
             {
-                Point from = selectedSquare.Value;
-                Point to = position;
-
-
-                selectedSquare = null;
-                highlightedMoves.Clear();
-                if (game.TryMove(from, to))
-                {
-                    ChessPiece? promotedPawn = game.GetPendingPromotionPiece();
-
-                    if (promotedPawn != null)
-                    {
-                        using Promote promoteForm = new Promote(promotedPawn.Color);
-
-                        if (promoteForm.ShowDialog() == DialogResult.OK)
-                        {
-                            game.PromotePawn(promoteForm.SelectedPiece);
-                        }
-                        else
-                        {
-                            game.PromotePawn(PieceType.Queen);
-                        }
-                    }
-                    RenderBoard();
-                    if (game.IsCheckmate(game.CurrentTurn))
-                    {
-                        MessageBox.Show($"{game.CurrentTurn} is checkmated!");
-                    }
-                    else if (game.IsStalemate(game.CurrentTurn))
-                    {
-                        MessageBox.Show("Stalemate!");
-                    }
-                    else if (game.IsInsufficientMaterial())
-                    {
-                        MessageBox.Show("Draw by insufficient material!");
-                    }
-                    else if (game.IsDrawByRepetition())
-                    {
-                        MessageBox.Show("Draw by repetition!");
-                    }
-                }
-                else
-                {
-                    RenderBoard();
-                }
+                SelectSquare(position);
+                return;
             }
+
+            Point from = selectedSquare.Value;
+            Point to = position;
+
+            selectedSquare = null;
+            highlightedMoves.Clear();
+
+            if (game.TryMove(from, to))
+            {
+                HandleAfterMove();
+            }
+
+            RenderBoard();
+        }
+        private void SelectSquare(Point position)
+        {
+            selectedSquare = position;
+            highlightedMoves = game.GetLegalMoves(position);
+
+            RenderBoard();
+            HighlightSelectedSquare(position);
+            HighlightLegalMoves();
+        }
+        private void HandleAfterMove()
+        {
+            ChessPiece? promotedPawn = game.GetPendingPromotionPiece();
+
+            if (promotedPawn != null)
+            {
+                using Promote promoteForm = new Promote(promotedPawn.Color);
+
+                if (promoteForm.ShowDialog() == DialogResult.OK)
+                    game.PromotePawn(promoteForm.SelectedPiece);
+                else
+                    game.PromotePawn(PieceType.Queen);
+            }
+
+            if (game.IsCheckmate(game.CurrentTurn))
+                MessageBox.Show($"{game.CurrentTurn} is checkmated!");
+            else if (game.IsStalemate(game.CurrentTurn))
+                MessageBox.Show("Stalemate!");
+            else if (game.IsInsufficientMaterial())
+                MessageBox.Show("Draw by insufficient material!");
+            else if (game.IsDrawByRepetition())
+                MessageBox.Show("Draw by repetition!");
         }
         private void RedrawBoardColors()
         {
@@ -312,6 +321,13 @@ namespace LocalChess.View
         }
         private static CultureInfo resourceCulture;
         private static ResourceManager resourceMan;
+
+        private void ChessBoardForm_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            game.BoardChanged -= RenderBoard;
+            _ = playerColor == PieceColor.White ? lobby.WhiteConnected = false : lobby.BlackConnected = false;
+        }
+
         private static ResourceManager ResourceManager
         {
             get
