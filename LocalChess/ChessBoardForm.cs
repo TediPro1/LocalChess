@@ -26,6 +26,7 @@ namespace LocalChess.View
         private readonly ChessGame game = new ChessGame();
         public Panel[,] Squares = new Panel[8, 8];
         private Point? selectedSquare = null;
+        private List<Point> highlightedMoves = new();
         private void CreateBoard()
         {
             boardPanel.Controls.Clear();
@@ -65,6 +66,8 @@ namespace LocalChess.View
         {
             RedrawBoardColors();
 
+            HighlightLastMove();
+
             for (int row = 0; row < 8; row++)
             {
                 for (int col = 0; col < 8; col++)
@@ -79,6 +82,28 @@ namespace LocalChess.View
                     }
                 }
             }
+
+            HighlightCheckedKing();
+
+            if (selectedSquare != null)
+            {
+                HighlightSelectedSquare(selectedSquare.Value);
+                HighlightLegalMoves();
+            }
+        }
+        private void HighlightCheckedKing()
+        {
+            if (game.IsKingInCheck(PieceColor.White))
+            {
+                Point kingPos = game.FindKing(PieceColor.White);
+                Squares[kingPos.X, kingPos.Y].BackColor = Color.FromArgb(220, 80, 80);
+            }
+
+            if (game.IsKingInCheck(PieceColor.Black))
+            {
+                Point kingPos = game.FindKing(PieceColor.Black);
+                Squares[kingPos.X, kingPos.Y].BackColor = Color.FromArgb(220, 80, 80);
+            }
         }
 
         private void Square_Click(object sender, EventArgs e)
@@ -86,6 +111,21 @@ namespace LocalChess.View
             Panel clicked = (Panel)sender;
             Point position = (Point)clicked.Tag;
 
+            ChessPiece? clickedPiece = game.Board.GetPiece(position.X, position.Y);
+
+            if (selectedSquare != null &&
+                clickedPiece != null &&
+                clickedPiece.Color == game.CurrentTurn)
+            {
+                selectedSquare = position;
+                highlightedMoves = game.GetLegalMoves(position);
+
+                RenderBoard();
+                HighlightSelectedSquare(position);
+                HighlightLegalMoves();
+
+                return;
+            }
             if (selectedSquare == null)
             {
                 ChessPiece? piece = game.Board.GetPiece(position.X, position.Y);
@@ -94,7 +134,11 @@ namespace LocalChess.View
                     return;
 
                 selectedSquare = position;
-                clicked.BackColor = Color.Yellow;
+                highlightedMoves = game.GetLegalMoves(position);
+
+                RenderBoard();
+                HighlightSelectedSquare(position);
+                HighlightLegalMoves();
             }
             else
             {
@@ -103,6 +147,7 @@ namespace LocalChess.View
 
 
                 selectedSquare = null;
+                highlightedMoves.Clear();
                 if (game.TryMove(from, to))
                 {
                     ChessPiece? promotedPawn = game.GetPendingPromotionPiece();
@@ -133,10 +178,14 @@ namespace LocalChess.View
                     {
                         MessageBox.Show("Draw by insufficient material!");
                     }
-                    else if (game.IsKingInCheck(game.CurrentTurn))
+                    else if (game.IsDrawByRepetition())
                     {
-                        MessageBox.Show($"{game.CurrentTurn} is in check!");
+                        MessageBox.Show("Draw by repetition!");
                     }
+                }
+                else
+                {
+                    RenderBoard();
                 }
             }
         }
@@ -153,6 +202,37 @@ namespace LocalChess.View
                         ? Color.Beige
                         : Color.SaddleBrown;
                 }
+            }
+        }
+        private void HighlightSelectedSquare(Point position)
+        {
+            Squares[position.X, position.Y].BackColor = Color.Yellow;
+        }
+        private void HighlightLastMove()
+        {
+            Color moveHighlight = Color.FromArgb(205, 210, 106);
+
+            if (game.LastMoveFrom != null)
+            {
+                Point from = game.LastMoveFrom.Value;
+                Squares[from.X, from.Y].BackColor = moveHighlight;
+            }
+
+            if (game.LastMoveTo != null)
+            {
+                Point to = game.LastMoveTo.Value;
+                Squares[to.X, to.Y].BackColor = moveHighlight;
+            }
+        }
+        private void HighlightLegalMoves()
+        {
+            foreach (Point move in highlightedMoves)
+            {
+                ChessPiece? target = game.Board.GetPiece(move.X, move.Y);
+
+                Squares[move.X, move.Y].BackColor = target == null
+                    ? Color.LightGreen
+                    : Color.IndianRed;
             }
         }
         public void SetPiece(int row, int col, Image image)

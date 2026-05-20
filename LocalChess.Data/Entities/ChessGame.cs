@@ -11,13 +11,16 @@ namespace LocalChess.Data.Entities
     public class ChessGame
     {
         public ChessBoard Board { get; } = new ChessBoard();
-
+        public Point? LastMoveFrom { get; private set; }
+        public Point? LastMoveTo { get; private set; }
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
         public PieceType PromotionChoice { get; set; } = PieceType.Queen;
+        public Dictionary<string, int> positionHistory { get; private set; } = new();
 
         public ChessGame()
         {
             Board.SetupStartingPosition();
+            SaveCurrentPosition();
         }
         private Point? enPassantTarget = null;
         private Point? pendingPromotionSquare = null;
@@ -43,11 +46,111 @@ namespace LocalChess.Data.Entities
 
             ExecuteMove(from, to, isEnPassant, isCastling);
 
+            LastMoveFrom = from;
+            LastMoveTo = to;
+
             CurrentTurn = CurrentTurn == PieceColor.White
                 ? PieceColor.Black
                 : PieceColor.White;
 
+            SaveCurrentPosition();
+
             return true;
+        }
+        private void SaveCurrentPosition()
+        {
+            string key = GetPositionKey();
+
+            if (!positionHistory.ContainsKey(key))
+                positionHistory[key] = 0;
+
+            positionHistory[key]++;
+        }
+        private string GetPositionKey()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            for (int row = 0; row < 8; row++)
+            {
+                for (int col = 0; col < 8; col++)
+                {
+                    ChessPiece? piece = Board.GetPiece(row, col);
+
+                    if (piece == null)
+                    {
+                        sb.Append('.');
+                        continue;
+                    }
+
+                    char symbol = GetPieceSymbol(piece);
+                    sb.Append(symbol);
+                }
+            }
+
+            sb.Append('|');
+            sb.Append(CurrentTurn);
+
+            sb.Append('|');
+            sb.Append(GetCastlingRightsKey());
+
+            sb.Append('|');
+            sb.Append(enPassantTarget?.ToString() ?? "-");
+
+            return sb.ToString();
+        }
+        private char GetPieceSymbol(ChessPiece piece)
+        {
+            char symbol = piece.Type switch
+            {
+                PieceType.King => 'k',
+                PieceType.Queen => 'q',
+                PieceType.Rook => 'r',
+                PieceType.Bishop => 'b',
+                PieceType.Knight => 'n',
+                PieceType.Pawn => 'p',
+                _ => '?'
+            };
+
+            return piece.Color == PieceColor.White
+                ? char.ToUpper(symbol)
+                : symbol;
+        }
+        private string GetCastlingRightsKey()
+        {
+            StringBuilder sb = new StringBuilder();
+
+            AddCastlingRight(sb, PieceColor.White, true); 
+            AddCastlingRight(sb, PieceColor.White, false);
+            AddCastlingRight(sb, PieceColor.Black, true);
+            AddCastlingRight(sb, PieceColor.Black, false);
+
+            return sb.Length == 0 ? "-" : sb.ToString();
+        }
+        private void AddCastlingRight(StringBuilder sb, PieceColor color, bool kingSide)
+        {
+            int row = color == PieceColor.White ? 7 : 0;
+            int kingCol = 4;
+            int rookCol = kingSide ? 7 : 0;
+
+            ChessPiece? king = Board.GetPiece(row, kingCol);
+            ChessPiece? rook = Board.GetPiece(row, rookCol);
+
+            if (king == null || rook == null)
+                return;
+
+            if (king.Type != PieceType.King || rook.Type != PieceType.Rook)
+                return;
+
+            if (king.Color != color || rook.Color != color)
+                return;
+
+            if (king.HasMoved || rook.HasMoved)
+                return;
+
+            if (color == PieceColor.White)
+                sb.Append(kingSide ? "K" : "Q");
+            else
+                sb.Append(kingSide ? "k" : "q");
         }
         private void ExecuteMove(Point from, Point to, bool isEnPassant, bool isCastling)
         {
@@ -184,6 +287,31 @@ namespace LocalChess.Data.Entities
 
                 _ => false
             };
+        }
+        public List<Point> GetLegalMoves(Point from)
+        {
+            List<Point> moves = new();
+
+            ChessPiece? piece = Board.GetPiece(from.X, from.Y);
+
+            if (piece == null || piece.Color != CurrentTurn)
+                return moves;
+
+            for (int row = 0; row < 8; row++)
+            {
+                for (int col = 0; col < 8; col++)
+                {
+                    Point to = new Point(row, col);
+
+                    if (IsLegalMove(from, to) &&
+                        !WouldLeaveKingInCheck(from, to, piece.Color))
+                    {
+                        moves.Add(to);
+                    }
+                }
+            }
+
+            return moves;
         }
         private bool IsStraightMove(Point from, Point to)
         {
@@ -337,7 +465,7 @@ namespace LocalChess.Data.Entities
 
             return true;
         }
-        private Point FindKing(PieceColor color)
+        public Point FindKing(PieceColor color)
         {
             for (int row = 0; row < 8; row++)
             {
@@ -432,6 +560,12 @@ namespace LocalChess.Data.Entities
         public bool IsStalemate(PieceColor color)
         {
             return !IsKingInCheck(color) && !HasAnyLegalMove(color);
+        }
+        public bool IsDrawByRepetition()
+        {
+            string key = GetPositionKey();
+
+            return positionHistory.TryGetValue(key, out int count) && count >= 3;
         }
         public bool IsInsufficientMaterial()
         {
