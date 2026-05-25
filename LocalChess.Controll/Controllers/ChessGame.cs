@@ -1,4 +1,5 @@
-﻿using LocalChess.Data.Enums;
+﻿using LocalChess.Controll.Events;
+using LocalChess.Data.Enums;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
@@ -14,9 +15,13 @@ namespace LocalChess.Data.Entities
         public Point? LastMoveFrom { get; private set; }
         public Point? LastMoveTo { get; private set; }
         public PieceColor CurrentTurn { get; private set; } = PieceColor.White;
+        public DateTime StartedAt { get; } = DateTime.Now;
         public PieceType PromotionChoice { get; set; } = PieceType.Queen;
         public Dictionary<string, int> positionHistory { get; private set; } = new();
         public event Action? BoardChanged;
+        public List<MoveRecord> MoveHistory { get; } = new();
+        public event EventHandler<GameEndedEventArgs>? GameEnded;
+        public bool WasSaved { get; set; }
 
         public ChessGame()
         {
@@ -25,6 +30,7 @@ namespace LocalChess.Data.Entities
         }
         private Point? enPassantTarget = null;
         private Point? pendingPromotionSquare = null;
+        private bool gameAlreadyEnded = false;
 
         public bool TryMove(Point from, Point to)
         {
@@ -49,12 +55,28 @@ namespace LocalChess.Data.Entities
 
             BoardChanged?.Invoke();
 
+            CheckGameEnd();
+
             LastMoveFrom = from;
             LastMoveTo = to;
 
-            CurrentTurn = CurrentTurn == PieceColor.White
+            PieceColor opponent = CurrentTurn = CurrentTurn == PieceColor.White
                 ? PieceColor.Black
                 : PieceColor.White;
+
+            string notation = BuildMoveNotation(from, to, isEnPassant, isCastling);
+
+            if (IsCheckmate(opponent))
+                notation += "#";
+            else if (IsKingInCheck(opponent))
+                notation += "+";
+
+            MoveHistory.Add(new MoveRecord
+            {
+                MoveNumber = MoveHistory.Count / 2 + 1,
+                Color = piece.Color,
+                Notation = notation
+            });
 
             SaveCurrentPosition();
 
@@ -100,6 +122,45 @@ namespace LocalChess.Data.Entities
             sb.Append(enPassantTarget?.ToString() ?? "-");
 
             return sb.ToString();
+        }
+        private string BuildMoveNotation(Point from, Point to, bool isEnPassant, bool isCastling)
+        {
+            ChessPiece? piece = Board.GetPiece(from.X, from.Y);
+            ChessPiece? target = Board.GetPiece(to.X, to.Y);
+
+            if (piece == null)
+                return "";
+
+            if (isCastling)
+                return to.Y > from.Y ? "O-O" : "O-O-O";
+
+            bool isCapture = target != null || isEnPassant;
+
+            string pieceLetter = piece.Type switch
+            {
+                PieceType.King => "K",
+                PieceType.Queen => "Q",
+                PieceType.Rook => "R",
+                PieceType.Bishop => "B",
+                PieceType.Knight => "N",
+                PieceType.Pawn => "",
+                _ => ""
+            };
+
+            string fromFile = ((char)('a' + from.Y)).ToString();
+            string toSquare = ToChessSquare(to);
+
+            if (piece.Type == PieceType.Pawn && isCapture)
+                return $"{fromFile}x{toSquare}";
+
+            return $"{pieceLetter}{(isCapture ? "x" : "")}{toSquare}";
+        }
+        private string ToChessSquare(Point pos)
+        {
+            char file = (char)('a' + pos.Y);
+            int rank = 8 - pos.X;
+
+            return $"{file}{rank}";
         }
         private char GetPieceSymbol(ChessPiece piece)
         {
@@ -555,6 +616,56 @@ namespace LocalChess.Data.Entities
             return target.X - from.X == direction &&
                    Math.Abs(target.Y - from.Y) == 1;
         }
+        private void CheckGameEnd()
+        {
+            if (gameAlreadyEnded)
+                return;
+
+            if (IsCheckmate(CurrentTurn))
+            {
+                gameAlreadyEnded = true;
+
+                GameEnded?.Invoke(this, new GameEndedEventArgs
+                {
+                    Result = CurrentTurn == PieceColor.White
+                        ? GameResult.BlackWon
+                        : GameResult.WhiteWon,
+
+                    EndReason = GameEndReason.Checkmate
+                });
+
+                return;
+            }
+
+            if (IsStalemate(CurrentTurn))
+            {
+                EndDraw(GameEndReason.Stalemate);
+                return;
+            }
+
+            if (IsInsufficientMaterial())
+            {
+                EndDraw(GameEndReason.InsufficientMaterial);
+                return;
+            }
+
+            if (IsDrawByRepetition())
+            {
+                EndDraw(GameEndReason.Repetition);
+                return;
+            }
+        }
+
+        private void EndDraw(GameEndReason reason)
+        {
+            gameAlreadyEnded = true;
+
+            GameEnded?.Invoke(this, new GameEndedEventArgs
+            {
+                Result = GameResult.Draw,
+                EndReason = reason
+            });
+        }
         public bool IsCheckmate(PieceColor color)
         {
             return IsKingInCheck(color) && !HasAnyLegalMove(color);
@@ -639,6 +750,110 @@ namespace LocalChess.Data.Entities
                 }
             }
             return false;
+        }
+        public string ToFen()
+        {
+            StringBuilder fen = new();
+
+            for (int row = 0; row < 8; row++)
+            {
+                int emptyCount = 0;
+
+                for (int col = 0; col < 8; col++)
+                {
+                    ChessPiece? piece = Board.GetPiece(row, col);
+
+                    if (piece == null)
+                    {
+                        emptyCount++;
+                        continue;
+                    }
+
+                    if (emptyCount > 0)
+                    {
+                        fen.Append(emptyCount);
+                        emptyCount = 0;
+                    }
+
+                    fen.Append(GetFenChar(piece));
+                }
+
+                if (emptyCount > 0)
+                    fen.Append(emptyCount);
+
+                if (row < 7)
+                    fen.Append('/');
+            }
+
+            fen.Append(CurrentTurn == PieceColor.White ? " w " : " b ");
+            fen.Append("- "); // castling rights placeholder
+            fen.Append("- "); // en passant placeholder
+            fen.Append("0 1"); // halfmove/fullmove placeholder
+
+            return fen.ToString();
+        }
+        public void LoadFromFen(string fen)
+        {
+            string boardPart = fen.Split(' ')[0];
+
+            Board.Clear();
+
+            string[] rows = boardPart.Split('/');
+
+            for (int row = 0; row < 8; row++)
+            {
+                int col = 0;
+
+                foreach (char c in rows[row])
+                {
+                    if (char.IsDigit(c))
+                    {
+                        col += c - '0';
+                        continue;
+                    }
+
+                    Board.Squares[row, col] = FenCharToPiece(c);
+                    col++;
+                }
+            }
+
+            BoardChanged?.Invoke();
+        }
+        private char GetFenChar(ChessPiece piece)
+        {
+            char c = piece.Type switch
+            {
+                PieceType.King => 'k',
+                PieceType.Queen => 'q',
+                PieceType.Rook => 'r',
+                PieceType.Bishop => 'b',
+                PieceType.Knight => 'n',
+                PieceType.Pawn => 'p',
+                _ => '?'
+            };
+
+            return piece.Color == PieceColor.White
+                ? char.ToUpper(c)
+                : c;
+        }
+        private ChessPiece FenCharToPiece(char c)
+        {
+            PieceColor color = char.IsUpper(c)
+                ? PieceColor.White
+                : PieceColor.Black;
+
+            PieceType type = char.ToLower(c) switch
+            {
+                'k' => PieceType.King,
+                'q' => PieceType.Queen,
+                'r' => PieceType.Rook,
+                'b' => PieceType.Bishop,
+                'n' => PieceType.Knight,
+                'p' => PieceType.Pawn,
+                _ => throw new Exception($"Invalid FEN char: {c}")
+            };
+
+            return new ChessPiece(type, color);
         }
     }
 }

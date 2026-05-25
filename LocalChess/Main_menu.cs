@@ -1,3 +1,7 @@
+using LocalChess.Controll.Controllers;
+using LocalChess.Controll.Interfaces;
+using LocalChess.Controll.Sessions;
+using LocalChess.Data.DTOs;
 using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
 using LocalChess.View;
@@ -10,13 +14,21 @@ namespace LocalChess
         public Main_menu()
         {
             InitializeComponent();
-            RefreshLobbyList();
+            CurrentLobbyManager.LobbiesChanged += RefreshLobbyList;
+            hidePassButton.BackgroundImage = View.Properties.Resources.show;
+            join_pass_hide_button.BackgroundImage = View.Properties.Resources.show;
         }
-        private List<GameLobby> activeLobbies = new List<GameLobby>();
+        private readonly OfflineLobbyManager offlineLobbyManager = new();
+        private readonly OnlineLobbyManager onlineLobbyManager = new("http://localhost:5014");
+        private ILobbyManager CurrentLobbyManager => isOnlineCheckBox.Checked ? onlineLobbyManager : offlineLobbyManager;
         private void RefreshLobbyList()
         {
-            listBox1.DataSource = null;
-            listBox1.DataSource = activeLobbies;
+            listBox1.Items.Clear();
+
+            foreach (var lobby in CurrentLobbyManager.Lobbies)
+            {
+                listBox1.Items.Add(lobby);
+            }
         }
         private void button2_Click(object sender, EventArgs e)
         {
@@ -42,48 +54,132 @@ namespace LocalChess
             menu.SelectedTab = new_game_page;
         }
 
-        private void button6_Click(object sender, EventArgs e)
+        private async void button6_Click(object sender, EventArgs e)
         {
-            GameLobby lobby = new GameLobby();
-            if (string.IsNullOrEmpty(new_game_name.Text))
+            if (string.IsNullOrWhiteSpace(new_game_name.Text))
             {
                 MessageBox.Show("Please enter a name for the game.");
                 return;
             }
-            lobby.Name = new_game_name.Text;
-            if (!string.IsNullOrEmpty(new_game_pass.Text))
+
+            string lobbyName = new_game_name.Text.Trim();
+            string? password = string.IsNullOrWhiteSpace(new_game_pass.Text)
+                ? null
+                : new_game_pass.Text.Trim();
+
+            LobbyDTO lobby = await CurrentLobbyManager
+                .CreateLobbyAsync(lobbyName, password);
+
+            ChessBoardForm gameForm;
+
+            if (CurrentLobbyManager is OnlineLobbyManager)
             {
-                lobby.Password = new_game_pass.Text;
+                var session = new OnlineGameSession(
+                    "http://localhost:5014",
+                    lobby.Id,
+                    PieceColor.White
+                );
+
+                await session.StartAsync();
+
+                gameForm = new ChessBoardForm(session);
             }
-            lobby.WhiteConnected = true;
-            ChessBoardForm gameForm = new ChessBoardForm(lobby, PieceColor.White);
+            else
+            {
+                OfflineLobbyManager offlineManager = CurrentLobbyManager as OfflineLobbyManager;
+                GameLobby realLobby = offlineManager.GetLocalLobby(lobby.Id);
+
+                gameForm = new ChessBoardForm(
+                    offlineManager,
+                    realLobby,
+                    PieceColor.White
+                    );
+            }
+
             gameForm.Show();
-            activeLobbies.Add(lobby);
-            RefreshLobbyList();
         }
 
-        private void button3_Click(object sender, EventArgs e)
+        private async void button3_Click(object sender, EventArgs e)
         {
-            if (listBox1.SelectedItem is GameLobby lobby)
+            if (listBox1.SelectedItem is not LobbyDTO selectedLobby)
+                return;
+
+            LobbyDTO? lobby = await CurrentLobbyManager.JoinLobbyAsync(
+                selectedLobby.Id,
+                join_game_pass.Text
+            );
+
+            if (lobby == null)
             {
-                if (!lobby.IsWaiting)
+                MessageBox.Show("Could not join lobby.");
+                return;
+            }
+
+            ChessBoardForm gameForm;
+
+            if (CurrentLobbyManager is OfflineLobbyManager offlineManager)
+            {
+                GameLobby? realLobby = offlineManager.GetLocalLobby(lobby.Id);
+
+                if (realLobby == null)
                 {
-                    MessageBox.Show("This lobby is already full.");
+                    MessageBox.Show("Could not find local lobby.");
                     return;
                 }
-                if (!string.IsNullOrEmpty(lobby.Password))
-                {
-                    if (join_game_pass.Text != lobby.Password)
-                    {
-                        MessageBox.Show("Incorrect password.");
-                        return;
-                    }
-                }
-                RefreshLobbyList();
-                lobby.BlackConnected = true;
-                ChessBoardForm gameForm = new ChessBoardForm(lobby, PieceColor.Black);
-                gameForm.Show();
+
+                gameForm = new ChessBoardForm(
+                    offlineManager,
+                    realLobby,
+                    PieceColor.Black
+                );
             }
+            else
+            {
+                var session = new OnlineGameSession(
+                    "http://localhost:5014",
+                    lobby.Id,
+                    PieceColor.Black
+                );
+
+                await session.StartAsync();
+
+                gameForm = new ChessBoardForm(session);
+            }
+
+            gameForm.Show();
+        }
+
+        private void button7_Click(object sender, EventArgs e)
+        {
+            if (new_game_pass.UseSystemPasswordChar)
+            {
+                new_game_pass.UseSystemPasswordChar = false;
+                hidePassButton.BackgroundImage = View.Properties.Resources.hide;
+            }
+            else
+            {
+                new_game_pass.UseSystemPasswordChar = true;
+                hidePassButton.BackgroundImage = View.Properties.Resources.show;
+            }
+        }
+
+        private void button7_Click_1(object sender, EventArgs e)
+        {
+            if (join_game_pass.UseSystemPasswordChar)
+            {
+                join_game_pass.UseSystemPasswordChar = false;
+                join_pass_hide_button.BackgroundImage = View.Properties.Resources.hide;
+            }
+            else
+            {
+                join_game_pass.UseSystemPasswordChar = true;
+                join_pass_hide_button.BackgroundImage = View.Properties.Resources.show;
+            }
+        }
+
+        private void Main_menu_FormClosed(object sender, FormClosedEventArgs e)
+        {
+            CurrentLobbyManager.LobbiesChanged -= RefreshLobbyList;
         }
     }
 }

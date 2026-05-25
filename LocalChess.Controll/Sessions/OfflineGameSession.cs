@@ -1,0 +1,95 @@
+﻿using LocalChess.Controll.Controllers;
+using LocalChess.Controll.Interfaces;
+using LocalChess.Data.Data;
+using LocalChess.Data.Entities;
+using LocalChess.Data.Enums;
+using System.Drawing;
+
+namespace LocalChess.Controll.Sessions
+{
+    public class OfflineGameSession : IGameSession
+    {
+        private readonly GameLobby lobby;
+
+        public ChessGame Game => lobby.Game;
+        public PieceColor PlayerColor { get; }
+
+        public string DisplayName => $"Offline Lobby {lobby.Name} ({PlayerColor})";
+
+        public event Action? BoardChanged;
+
+        private readonly ILobbyManager lobbyManager;
+        public event Action<string>? GameEnded;
+        private bool hasLeft;
+
+        public async Task EndGameAsync(string message, GameResult result, GameEndReason reason)
+        {
+            await SaveCompletedGameOnceAsync(result, reason);
+            lobby.EndGame(message);
+        }
+
+        public OfflineGameSession(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor)
+        {
+            this.lobbyManager = lobbyManager;
+            this.lobby = lobby;
+
+            PlayerColor = playerColor;
+
+            Game.BoardChanged += () => BoardChanged?.Invoke();
+            lobby.GameEnded += OnLobbyGameEnded;
+
+            SubscribeGameSaving();
+        }
+
+        public Task<bool> TryMoveAsync(Point from, Point to, PieceType? promotion = null)
+        {
+            bool success = Game.TryMove(from, to);
+
+            if (success && promotion != null)
+                Game.PromotePawn(promotion.Value);
+
+            return Task.FromResult(success);
+        }
+
+        public async Task LeaveAsync()
+        {
+            if (hasLeft)
+                return;
+
+            hasLeft = true;
+
+            lobby.GameEnded -= OnLobbyGameEnded;
+            await lobbyManager.LeaveLobbyAsync(lobby.Id, PlayerColor);
+        }
+        private void OnLobbyGameEnded(string message)
+        {
+            GameEnded?.Invoke(message);
+        }
+        protected void SubscribeGameSaving()
+        {
+            Game.GameEnded += async (_, e) =>
+            {
+                await SaveCompletedGameOnceAsync(e.Result, e.EndReason);
+            };
+        }
+
+        private async Task SaveCompletedGameOnceAsync(GameResult result, GameEndReason reason)
+        {
+            if (Game.WasSaved)
+                return;
+
+            Game.WasSaved = true;
+
+            using ChessContext context = new();
+            GameSaveService saver = new(context);
+
+            await saver.SaveGameAsync(
+                Game,
+                lobby.Name,
+                false,
+                result,
+                reason
+            );
+        }
+    }
+}

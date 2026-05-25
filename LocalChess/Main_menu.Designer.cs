@@ -34,18 +34,21 @@
             button2 = new Button();
             button1 = new Button();
             join_game_page = new TabPage();
+            join_pass_hide_button = new Button();
             label1 = new Label();
             join_game_pass = new TextBox();
             button4 = new Button();
             button3 = new Button();
             listBox1 = new ListBox();
             new_game_page = new TabPage();
+            hidePassButton = new Button();
             label3 = new Label();
             label2 = new Label();
             new_game_pass = new TextBox();
             new_game_name = new TextBox();
             button5 = new Button();
             button6 = new Button();
+            isOnlineCheckBox = new CheckBox();
             menu.SuspendLayout();
             main_page.SuspendLayout();
             join_game_page.SuspendLayout();
@@ -68,6 +71,7 @@
             // 
             main_page.BackgroundImage = View.Properties.Resources.ChessBG;
             main_page.BackgroundImageLayout = ImageLayout.Stretch;
+            main_page.Controls.Add(isOnlineCheckBox);
             main_page.Controls.Add(button2);
             main_page.Controls.Add(button1);
             main_page.Location = new Point(4, 24);
@@ -105,6 +109,7 @@
             // 
             join_game_page.BackgroundImage = View.Properties.Resources.ChessBG;
             join_game_page.BackgroundImageLayout = ImageLayout.Stretch;
+            join_game_page.Controls.Add(join_pass_hide_button);
             join_game_page.Controls.Add(label1);
             join_game_page.Controls.Add(join_game_pass);
             join_game_page.Controls.Add(button4);
@@ -118,6 +123,16 @@
             join_game_page.TabIndex = 1;
             join_game_page.Text = "tabPage2";
             join_game_page.UseVisualStyleBackColor = true;
+            // 
+            // join_pass_hide_button
+            // 
+            join_pass_hide_button.BackgroundImageLayout = ImageLayout.Stretch;
+            join_pass_hide_button.Location = new Point(556, 157);
+            join_pass_hide_button.Name = "join_pass_hide_button";
+            join_pass_hide_button.Size = new Size(25, 25);
+            join_pass_hide_button.TabIndex = 8;
+            join_pass_hide_button.UseVisualStyleBackColor = true;
+            join_pass_hide_button.Click += button7_Click_1;
             // 
             // label1
             // 
@@ -136,6 +151,7 @@
             join_game_pass.Name = "join_game_pass";
             join_game_pass.Size = new Size(204, 23);
             join_game_pass.TabIndex = 2;
+            join_game_pass.UseSystemPasswordChar = true;
             // 
             // button4
             // 
@@ -173,6 +189,7 @@
             // 
             new_game_page.BackgroundImage = View.Properties.Resources.ChessBG;
             new_game_page.BackgroundImageLayout = ImageLayout.Stretch;
+            new_game_page.Controls.Add(hidePassButton);
             new_game_page.Controls.Add(label3);
             new_game_page.Controls.Add(label2);
             new_game_page.Controls.Add(new_game_pass);
@@ -187,6 +204,16 @@
             new_game_page.TabIndex = 2;
             new_game_page.Text = "tabPage3";
             new_game_page.UseVisualStyleBackColor = true;
+            // 
+            // hidePassButton
+            // 
+            hidePassButton.BackgroundImageLayout = ImageLayout.Stretch;
+            hidePassButton.Location = new Point(454, 204);
+            hidePassButton.Name = "hidePassButton";
+            hidePassButton.Size = new Size(25, 25);
+            hidePassButton.TabIndex = 7;
+            hidePassButton.UseVisualStyleBackColor = true;
+            hidePassButton.Click += button7_Click;
             // 
             // label3
             // 
@@ -247,6 +274,17 @@
             button6.UseVisualStyleBackColor = true;
             button6.Click += button6_Click;
             // 
+            // isOnlineCheckBox
+            // 
+            isOnlineCheckBox.AutoSize = true;
+            isOnlineCheckBox.ForeColor = SystemColors.Control;
+            isOnlineCheckBox.Location = new Point(321, 244);
+            isOnlineCheckBox.Name = "isOnlineCheckBox";
+            isOnlineCheckBox.Size = new Size(61, 19);
+            isOnlineCheckBox.TabIndex = 7;
+            isOnlineCheckBox.Text = "Online";
+            isOnlineCheckBox.UseVisualStyleBackColor = true;
+            // 
             // Main_menu
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
@@ -259,8 +297,10 @@
             Margin = new Padding(3, 2, 3, 2);
             Name = "Main_menu";
             Text = "Main menu";
+            FormClosed += Main_menu_FormClosed;
             menu.ResumeLayout(false);
             main_page.ResumeLayout(false);
+            main_page.PerformLayout();
             join_game_page.ResumeLayout(false);
             join_game_page.PerformLayout();
             new_game_page.ResumeLayout(false);
@@ -287,5 +327,8 @@
         private Label label2;
         private TextBox new_game_pass;
         private TextBox new_game_name;
+        private Button hidePassButton;
+        private Button join_pass_hide_button;
+        private CheckBox isOnlineCheckBox;
     }
 }

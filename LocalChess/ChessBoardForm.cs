@@ -1,4 +1,8 @@
-﻿using LocalChess.Data.Entities;
+﻿using LocalChess.Controll.Controllers;
+using LocalChess.Controll.Interfaces;
+using LocalChess.Controll.Sessions;
+using LocalChess.Data.DTOs;
+using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
 using System;
 using System.Collections.Generic;
@@ -11,6 +15,7 @@ using System.Resources;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace LocalChess.View
 {
@@ -19,34 +24,71 @@ namespace LocalChess.View
         public ChessBoardForm()
         {
             InitializeComponent();
+
+            if (IsInDesigner())
+                return;
+
             CreateBoard();
             game.Board.SetupStartingPosition();
             game.BoardChanged += RenderBoard;
             RenderBoard();
         }
-        private readonly ChessGame game = new ChessGame();
+
+        public ChessBoardForm(IGameSession session)
+        {
+            InitializeComponent();
+
+            if (IsInDesigner())
+                return;
+
+            this.session = session;
+
+            session.BoardChanged += () =>
+            {
+
+                ClearSelection();
+
+                if (IsDisposed)
+                    return;
+
+                if (InvokeRequired)
+                    BeginInvoke(new Action(RenderBoard));
+                else
+                    RenderBoard();
+            };
+
+            session.GameEnded += async message =>
+            {
+                if (IsDisposed)
+                    return;
+
+                if (InvokeRequired)
+                {
+                    BeginInvoke(new Action(async () => await EndGameAsync(message)));
+                }
+                else
+                {
+                    await EndGameAsync(message);
+                }
+            };
+
+            playerColor = session.PlayerColor;
+
+            CreateBoard();
+            RenderBoard();
+        }
+        private readonly IGameSession session;
+        private ChessGame? game => session.Game;
         public Panel[,] Squares = new Panel[8, 8];
         private Point? selectedSquare = null;
         private List<Point> highlightedMoves = new();
 
         private readonly GameLobby lobby;
         private readonly PieceColor playerColor;
-        public ChessBoardForm(GameLobby lobby, PieceColor playerColor)
-        {
-            InitializeComponent();
-
-            this.lobby = lobby;
-            this.playerColor = playerColor;
-
-            game = lobby.Game;
-            game.BoardChanged += RenderBoard;
-
-            CreateBoard();
-            RenderBoard();
-        }
+        public ChessBoardForm(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor) : this(new OfflineGameSession(lobbyManager, lobby, playerColor)) { }
         private void CreateBoard()
         {
-            Text = $"LocalChess - {lobby.Name} ({playerColor})";
+            Text = session.DisplayName;
             boardPanel.Controls.Clear();
 
             boardPanel.RowCount = 8;
@@ -82,6 +124,8 @@ namespace LocalChess.View
         }
         private void RenderBoard()
         {
+            boardPanel.SuspendLayout();
+
             RedrawBoardColors();
 
             HighlightLastMove();
@@ -90,14 +134,17 @@ namespace LocalChess.View
             {
                 for (int col = 0; col < 8; col++)
                 {
-                    Squares[row, col].Controls.Clear();
-
                     ChessPiece? piece = game.Board.GetPiece(row, col);
 
-                    if (piece != null)
+                    if (piece == null)
                     {
-                        SetPiece(row, col, GetPieceImage(piece));
+                        if (Squares[row, col].Controls.Count > 0)
+                            Squares[row, col].Controls.Clear();
+
+                        continue;
                     }
+
+                    SetPiece(row, col, GetPieceImage(piece));
                 }
             }
 
@@ -108,6 +155,30 @@ namespace LocalChess.View
                 HighlightSelectedSquare(selectedSquare.Value);
                 HighlightLegalMoves();
             }
+
+            boardPanel.ResumeLayout();
+        }
+        //private void RenderMoveHistory()
+        //{
+        //    moveHistoryListBox.Items.Clear();
+
+        //    for (int i = 0; i < game.MoveHistory.Count; i += 2)
+        //    {
+        //        var white = game.MoveHistory[i];
+
+        //        string blackMove = i + 1 < game.MoveHistory.Count
+        //            ? game.MoveHistory[i + 1].Notation
+        //            : "";
+
+        //        moveHistoryListBox.Items.Add(
+        //            $"{white.MoveNumber}. {white.Notation} {blackMove}"
+        //        );
+        //    }
+        //}
+        private bool IsInDesigner()
+        {
+            return LicenseManager.UsageMode == LicenseUsageMode.Designtime ||
+                   DesignMode;
         }
         private void HighlightCheckedKing()
         {
@@ -124,7 +195,7 @@ namespace LocalChess.View
             }
         }
 
-        private void Square_Click(object sender, EventArgs e)
+        private async void Square_Click(object sender, EventArgs e)
         {
             Panel clicked = (Panel)sender;
             Point position = (Point)clicked.Tag;
@@ -156,15 +227,21 @@ namespace LocalChess.View
             Point from = selectedSquare.Value;
             Point to = position;
 
+            ClearSelection();
+
+            if (await session.TryMoveAsync(from, to))
+            {
+                await HandleAfterMoveAsync();
+            }
+            else
+            {
+                RenderBoard();
+            }
+        }
+        private void ClearSelection()
+        {
             selectedSquare = null;
             highlightedMoves.Clear();
-
-            if (game.TryMove(from, to))
-            {
-                HandleAfterMove();
-            }
-
-            RenderBoard();
         }
         private void SelectSquare(Point position)
         {
@@ -172,10 +249,8 @@ namespace LocalChess.View
             highlightedMoves = game.GetLegalMoves(position);
 
             RenderBoard();
-            HighlightSelectedSquare(position);
-            HighlightLegalMoves();
         }
-        private void HandleAfterMove()
+        private async Task HandleAfterMoveAsync()
         {
             ChessPiece? promotedPawn = game.GetPendingPromotionPiece();
 
@@ -190,13 +265,41 @@ namespace LocalChess.View
             }
 
             if (game.IsCheckmate(game.CurrentTurn))
-                MessageBox.Show($"{game.CurrentTurn} is checkmated!");
+            {
+                GameResult result = game.CurrentTurn == PieceColor.White
+                    ? GameResult.BlackWon
+                    : GameResult.WhiteWon;
+
+                await session.EndGameAsync(
+                    $"{game.CurrentTurn} is checkmated!",
+                    result,
+                    GameEndReason.Checkmate
+                );
+            }
             else if (game.IsStalemate(game.CurrentTurn))
-                MessageBox.Show("Stalemate!");
+            {
+                await session.EndGameAsync(
+                    "Stalemate!",
+                    GameResult.Draw,
+                    GameEndReason.Stalemate
+                );
+            }
             else if (game.IsInsufficientMaterial())
-                MessageBox.Show("Draw by insufficient material!");
+            {
+                await session.EndGameAsync(
+                    "Draw by insufficient material!",
+                    GameResult.Draw,
+                    GameEndReason.InsufficientMaterial
+                );
+            }
             else if (game.IsDrawByRepetition())
-                MessageBox.Show("Draw by repetition!");
+            {
+                await session.EndGameAsync(
+                    "Draw by repetition!",
+                    GameResult.Draw,
+                    GameEndReason.Repetition
+                );
+            }
         }
         private void RedrawBoardColors()
         {
@@ -251,19 +354,33 @@ namespace LocalChess.View
             if (square == null)
                 return;
 
-            square.Controls.Clear();
+            PictureBox pieceBox;
 
-            PictureBox piece = new PictureBox();
-            piece.Image = image;
+            if (square.Controls.Count > 0 && square.Controls[0] is PictureBox existingBox)
+            {
+                pieceBox = existingBox;
+            }
+            else
+            {
+                square.Controls.Clear();
 
-            piece.Dock = DockStyle.Fill;
-            piece.SizeMode = PictureBoxSizeMode.Zoom;
-            piece.BackColor = Color.Transparent;
-            piece.Tag = square.Tag;
+                pieceBox = new PictureBox
+                {
+                    Dock = DockStyle.Fill,
+                    SizeMode = PictureBoxSizeMode.Zoom,
+                    BackColor = Color.Transparent,
+                    Tag = square.Tag,
+                    Cursor = Cursors.Hand
+                };
 
-            piece.Click += Piece_Click;
+                pieceBox.Click += Piece_Click;
+                square.Controls.Add(pieceBox);
+            }
 
-            square.Controls.Add(piece);
+            if (!ReferenceEquals(pieceBox.Image, image))
+            {
+                pieceBox.Image = image;
+            }
         }
         private void Piece_Click(object sender, EventArgs e)
         {
@@ -322,10 +439,9 @@ namespace LocalChess.View
         private static CultureInfo resourceCulture;
         private static ResourceManager resourceMan;
 
-        private void ChessBoardForm_FormClosed(object sender, FormClosedEventArgs e)
+        private async void ChessBoardForm_FormClosed(object sender, FormClosedEventArgs e)
         {
-            game.BoardChanged -= RenderBoard;
-            _ = playerColor == PieceColor.White ? lobby.WhiteConnected = false : lobby.BlackConnected = false;
+            await LeaveSessionOnceAsync();
         }
 
         private static ResourceManager ResourceManager
@@ -339,6 +455,26 @@ namespace LocalChess.View
                 }
                 return resourceMan;
             }
+        }
+        private bool hasLeftSession = false;
+
+        private async Task LeaveSessionOnceAsync()
+        {
+            if (hasLeftSession)
+                return;
+
+            hasLeftSession = true;
+
+            session.BoardChanged -= RenderBoard;
+            await session.LeaveAsync();
+        }
+        private async Task EndGameAsync(string message)
+        {
+            MessageBox.Show(message);
+
+            await LeaveSessionOnceAsync();
+
+            Close();
         }
     }
 }

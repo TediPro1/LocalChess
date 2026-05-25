@@ -10,7 +10,7 @@ namespace LocalChess.Data.Entities
     {
         public override string ToString()
         {
-            return string.IsNullOrEmpty(Password) ? $"{Name} {(IsWaiting ? "(Waiting for opponent)" : "(Full)")}" : $"{Name} {(IsWaiting ? "(Waiting for opponent)" : "(Full)")} 🔒";
+            return $"{Name} {(IsWaiting ? "(Waiting)" : "(Full)")} {(HasPassword ? "🔒" : "")}";
         }
     }
 }
