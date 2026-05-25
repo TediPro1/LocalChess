@@ -29,9 +29,13 @@ namespace LocalChess.View
                 return;
 
             CreateBoard();
-            game.Board.SetupStartingPosition();
-            game.BoardChanged += RenderBoard;
+            RenderMoveHistory();
             RenderBoard();
+        }
+
+        public ChessBoardForm(SavedGame savedGame) : this()
+        {
+            LoadPositionAndImportSavedMoves(savedGame);
         }
 
         public ChessBoardForm(IGameSession session)
@@ -76,19 +80,24 @@ namespace LocalChess.View
 
             CreateBoard();
             RenderBoard();
+            RenderMoveHistory();
         }
-        private readonly IGameSession session;
-        private ChessGame? game => session.Game;
+        private readonly ChessGame previewGame = new();
+        private readonly IGameSession? session;
+        private ChessGame game => session?.Game ?? previewGame;
         public Panel[,] Squares = new Panel[8, 8];
         private Point? selectedSquare = null;
         private List<Point> highlightedMoves = new();
+        private readonly List<string> loadedPositions = new();
+        private readonly List<MoveRecord> importedMoves = new();
+        private int loadedPositionIndex = -1;
 
         private readonly GameLobby lobby;
         private readonly PieceColor playerColor;
         public ChessBoardForm(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor) : this(new OfflineGameSession(lobbyManager, lobby, playerColor)) { }
         private void CreateBoard()
         {
-            Text = session.DisplayName;
+            Text = session?.DisplayName ?? "Game Preview";
             boardPanel.Controls.Clear();
 
             boardPanel.RowCount = 8;
@@ -158,23 +167,150 @@ namespace LocalChess.View
 
             boardPanel.ResumeLayout();
         }
-        //private void RenderMoveHistory()
-        //{
-        //    moveHistoryListBox.Items.Clear();
+        public void LoadPositionAndImportSavedMoves(SavedGame savedGame)
+        {
+            if (savedGame == null)
+                throw new ArgumentNullException(nameof(savedGame));
 
-        //    for (int i = 0; i < game.MoveHistory.Count; i += 2)
-        //    {
-        //        var white = game.MoveHistory[i];
+            List<MoveRecord> moves = savedGame.Moves
+                .OrderBy(move => move.MoveNumber)
+                .ThenBy(move => move.Id)
+                .Select(move => new MoveRecord
+                {
+                    MoveNumber = move.MoveNumber,
+                    Color = move.Color,
+                    FromSquare = move.FromSquare,
+                    ToSquare = move.ToSquare,
+                    Notation = move.Notation,
+                    PromotionPiece = move.PromotionPiece,
+                    PlayedAt = move.PlayedAt
+                })
+                .ToList();
 
-        //        string blackMove = i + 1 < game.MoveHistory.Count
-        //            ? game.MoveHistory[i + 1].Notation
-        //            : "";
+            LoadPositionAndImportSavedMoves(savedGame.FinalFen, moves);
+        }
 
-        //        moveHistoryListBox.Items.Add(
-        //            $"{white.MoveNumber}. {white.Notation} {blackMove}"
-        //        );
-        //    }
-        //}
+        public void LoadPositionAndImportSavedMoves(string? fen, IEnumerable<MoveRecord> moves)
+        {
+            importedMoves.Clear();
+            importedMoves.AddRange(moves);
+
+            game.MoveHistory.Clear();
+            game.MoveHistory.AddRange(importedMoves);
+
+            loadedPositions.Clear();
+
+            if (!TryBuildPositionHistory(importedMoves, loadedPositions))
+            {
+                if (string.IsNullOrWhiteSpace(fen))
+                    throw new InvalidOperationException("Cannot load a position without a FEN or replayable saved moves.");
+
+                loadedPositions.Add(fen);
+            }
+
+            ApplyLoadedPosition(loadedPositions.Count - 1);
+        }
+
+        public void TurnBackOneMove()
+        {
+            if (loadedPositionIndex <= 0)
+                return;
+
+            ApplyLoadedPosition(loadedPositionIndex - 1);
+        }
+
+        public void TurnBackOneMove(object? sender, EventArgs e)
+        {
+            TurnBackOneMove();
+        }
+
+        public void TurnForthOneMove()
+        {
+            if (loadedPositionIndex < 0 || loadedPositionIndex >= loadedPositions.Count - 1)
+                return;
+
+            ApplyLoadedPosition(loadedPositionIndex + 1);
+        }
+
+        public void TurnForthOneMove(object? sender, EventArgs e)
+        {
+            TurnForthOneMove();
+        }
+
+        private void ApplyLoadedPosition(int index)
+        {
+            if (index < 0 || index >= loadedPositions.Count)
+                return;
+
+            loadedPositionIndex = index;
+            ClearSelection();
+            game.LoadFromFen(loadedPositions[index]);
+            RenderBoard();
+        }
+
+        private static bool TryBuildPositionHistory(IEnumerable<MoveRecord> moves, List<string> positions)
+        {
+            ChessGame replayGame = new();
+
+            positions.Add(replayGame.ToFen());
+
+            foreach (MoveRecord move in moves)
+            {
+                if (!TryParseChessSquare(move.FromSquare, out Point from) ||
+                    !TryParseChessSquare(move.ToSquare, out Point to))
+                {
+                    positions.Clear();
+                    return false;
+                }
+
+                if (!replayGame.TryMove(from, to))
+                {
+                    positions.Clear();
+                    return false;
+                }
+
+                if (move.PromotionPiece != null)
+                    replayGame.PromotePawn(move.PromotionPiece.Value);
+
+                positions.Add(replayGame.ToFen());
+            }
+
+            return true;
+        }
+
+        private static bool TryParseChessSquare(string square, out Point point)
+        {
+            point = default;
+
+            if (string.IsNullOrWhiteSpace(square) || square.Length != 2)
+                return false;
+
+            char file = char.ToLowerInvariant(square[0]);
+            char rank = square[1];
+
+            if (file < 'a' || file > 'h' || rank < '1' || rank > '8')
+                return false;
+
+            point = new Point(8 - (rank - '0'), file - 'a');
+            return true;
+        }
+        private void RenderMoveHistory()
+        {
+            moveHistoryListBox.Items.Clear();
+
+            for (int i = 0; i < game.MoveHistory.Count; i += 2)
+            {
+                var white = game.MoveHistory[i];
+
+                string blackMove = i + 1 < game.MoveHistory.Count
+                    ? game.MoveHistory[i + 1].Notation
+                    : "";
+
+                moveHistoryListBox.Items.Add(
+                    $"{white.MoveNumber}. {white.Notation} {blackMove}"
+                );
+            }
+        }
         private bool IsInDesigner()
         {
             return LicenseManager.UsageMode == LicenseUsageMode.Designtime ||
@@ -197,6 +333,9 @@ namespace LocalChess.View
 
         private async void Square_Click(object sender, EventArgs e)
         {
+            if (session == null)
+                return;
+
             Panel clicked = (Panel)sender;
             Point position = (Point)clicked.Tag;
 
@@ -390,6 +529,7 @@ namespace LocalChess.View
                 Squares[((Point)piece.Tag).X, ((Point)piece.Tag).Y],
                 e
             );
+            label1.Text = $"Current turn: {game.CurrentTurn}";
         }
         public static Image GetPieceImage(ChessPiece piece)
         {
@@ -464,6 +604,9 @@ namespace LocalChess.View
                 return;
 
             hasLeftSession = true;
+
+            if (session == null)
+                return;
 
             session.BoardChanged -= RenderBoard;
             await session.LeaveAsync();

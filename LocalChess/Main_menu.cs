@@ -1,10 +1,12 @@
 using LocalChess.Controll.Controllers;
 using LocalChess.Controll.Interfaces;
 using LocalChess.Controll.Sessions;
+using LocalChess.Data.Data;
 using LocalChess.Data.DTOs;
 using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
 using LocalChess.View;
+using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
 
 namespace LocalChess
@@ -28,6 +30,17 @@ namespace LocalChess
             foreach (var lobby in CurrentLobbyManager.Lobbies)
             {
                 listBox1.Items.Add(lobby);
+            }
+
+            flowLayoutPanel1.Controls.Clear();
+            using ChessContext context = new();
+            var savedGames = context.SavedGames
+                .Include(game => game.Moves)
+                .ToList();
+
+            foreach (var game in savedGames)
+            {
+                flowLayoutPanel1.Controls.Add(new ShowChessGame(game));
             }
         }
         private void button2_Click(object sender, EventArgs e)
@@ -180,6 +193,16 @@ namespace LocalChess
         private void Main_menu_FormClosed(object sender, FormClosedEventArgs e)
         {
             CurrentLobbyManager.LobbiesChanged -= RefreshLobbyList;
+        }
+
+        private void button8_Click(object sender, EventArgs e)
+        {
+            menu.SelectedTab = join_game_page;
+        }
+
+        private void button7_Click_2(object sender, EventArgs e)
+        {
+            menu.SelectedTab = game_history_page;
         }
     }
 }

@@ -31,6 +31,7 @@
             System.ComponentModel.ComponentResourceManager resources = new System.ComponentModel.ComponentResourceManager(typeof(Main_menu));
             menu = new TabControl();
             main_page = new TabPage();
+            isOnlineCheckBox = new CheckBox();
             button2 = new Button();
             button1 = new Button();
             join_game_page = new TabPage();
@@ -48,11 +49,15 @@
             new_game_name = new TextBox();
             button5 = new Button();
             button6 = new Button();
-            isOnlineCheckBox = new CheckBox();
+            game_history_page = new TabPage();
+            button8 = new Button();
+            flowLayoutPanel1 = new FlowLayoutPanel();
+            button7 = new Button();
             menu.SuspendLayout();
             main_page.SuspendLayout();
             join_game_page.SuspendLayout();
             new_game_page.SuspendLayout();
+            game_history_page.SuspendLayout();
             SuspendLayout();
             // 
             // menu
@@ -60,6 +65,7 @@
             menu.Controls.Add(main_page);
             menu.Controls.Add(join_game_page);
             menu.Controls.Add(new_game_page);
+            menu.Controls.Add(game_history_page);
             menu.Location = new Point(-4, -22);
             menu.Margin = new Padding(3, 2, 3, 2);
             menu.Name = "menu";
@@ -82,6 +88,17 @@
             main_page.TabIndex = 0;
             main_page.Text = "tabPage1";
             main_page.UseVisualStyleBackColor = true;
+            // 
+            // isOnlineCheckBox
+            // 
+            isOnlineCheckBox.AutoSize = true;
+            isOnlineCheckBox.ForeColor = SystemColors.Control;
+            isOnlineCheckBox.Location = new Point(321, 244);
+            isOnlineCheckBox.Name = "isOnlineCheckBox";
+            isOnlineCheckBox.Size = new Size(61, 19);
+            isOnlineCheckBox.TabIndex = 7;
+            isOnlineCheckBox.Text = "Online";
+            isOnlineCheckBox.UseVisualStyleBackColor = true;
             // 
             // button2
             // 
@@ -112,6 +129,7 @@
             join_game_page.Controls.Add(join_pass_hide_button);
             join_game_page.Controls.Add(label1);
             join_game_page.Controls.Add(join_game_pass);
+            join_game_page.Controls.Add(button7);
             join_game_page.Controls.Add(button4);
             join_game_page.Controls.Add(button3);
             join_game_page.Controls.Add(listBox1);
@@ -254,7 +272,7 @@
             // 
             // button5
             // 
-            button5.Location = new Point(596, 306);
+            button5.Location = new Point(596, 305);
             button5.Margin = new Padding(3, 2, 3, 2);
             button5.Name = "button5";
             button5.Size = new Size(102, 31);
@@ -274,16 +292,48 @@
             button6.UseVisualStyleBackColor = true;
             button6.Click += button6_Click;
             // 
-            // isOnlineCheckBox
+            // game_history_page
             // 
-            isOnlineCheckBox.AutoSize = true;
-            isOnlineCheckBox.ForeColor = SystemColors.Control;
-            isOnlineCheckBox.Location = new Point(321, 244);
-            isOnlineCheckBox.Name = "isOnlineCheckBox";
-            isOnlineCheckBox.Size = new Size(61, 19);
-            isOnlineCheckBox.TabIndex = 7;
-            isOnlineCheckBox.Text = "Online";
-            isOnlineCheckBox.UseVisualStyleBackColor = true;
+            game_history_page.Controls.Add(button8);
+            game_history_page.Controls.Add(flowLayoutPanel1);
+            game_history_page.Location = new Point(4, 24);
+            game_history_page.Name = "game_history_page";
+            game_history_page.Padding = new Padding(3);
+            game_history_page.Size = new Size(702, 336);
+            game_history_page.TabIndex = 3;
+            game_history_page.Text = "History";
+            game_history_page.UseVisualStyleBackColor = true;
+            // 
+            // button8
+            // 
+            button8.Location = new Point(594, 300);
+            button8.Margin = new Padding(3, 2, 3, 2);
+            button8.Name = "button8";
+            button8.Size = new Size(102, 31);
+            button8.TabIndex = 2;
+            button8.Text = "Back";
+            button8.UseVisualStyleBackColor = true;
+            button8.Click += button8_Click;
+            // 
+            // flowLayoutPanel1
+            // 
+            flowLayoutPanel1.AutoScroll = true;
+            flowLayoutPanel1.Dock = DockStyle.Fill;
+            flowLayoutPanel1.Location = new Point(3, 3);
+            flowLayoutPanel1.Name = "flowLayoutPanel1";
+            flowLayoutPanel1.Size = new Size(696, 330);
+            flowLayoutPanel1.TabIndex = 0;
+            // 
+            // button7
+            // 
+            button7.Location = new Point(594, 4);
+            button7.Margin = new Padding(3, 2, 3, 2);
+            button7.Name = "button7";
+            button7.Size = new Size(102, 31);
+            button7.TabIndex = 1;
+            button7.Text = "Game History";
+            button7.UseVisualStyleBackColor = true;
+            button7.Click += button7_Click_2;
             // 
             // Main_menu
             // 
@@ -305,6 +355,7 @@
             join_game_page.PerformLayout();
             new_game_page.ResumeLayout(false);
             new_game_page.PerformLayout();
+            game_history_page.ResumeLayout(false);
             ResumeLayout(false);
         }
 
@@ -330,5 +381,9 @@
         private Button hidePassButton;
         private Button join_pass_hide_button;
         private CheckBox isOnlineCheckBox;
+        private TabPage game_history_page;
+        private FlowLayoutPanel flowLayoutPanel1;
+        private Button button8;
+        private Button button7;
     }
 }

@@ -75,6 +75,8 @@ namespace LocalChess.Data.Entities
             {
                 MoveNumber = MoveHistory.Count / 2 + 1,
                 Color = piece.Color,
+                FromSquare = ToChessSquare(from),
+                ToSquare = ToChessSquare(to),
                 Notation = notation
             });
 
@@ -301,6 +303,11 @@ namespace LocalChess.Data.Entities
 
             pawn.Type = newType;
             pendingPromotionSquare = null;
+
+            MoveRecord? lastMove = MoveHistory.LastOrDefault();
+
+            if (lastMove != null)
+                lastMove.PromotionPiece = newType;
         }
         private bool IsEnPassantMove(ChessPiece piece, Point from, Point to)
         {
@@ -794,7 +801,8 @@ namespace LocalChess.Data.Entities
         }
         public void LoadFromFen(string fen)
         {
-            string boardPart = fen.Split(' ')[0];
+            string[] parts = fen.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+            string boardPart = parts[0];
 
             Board.Clear();
 
@@ -815,6 +823,13 @@ namespace LocalChess.Data.Entities
                     Board.Squares[row, col] = FenCharToPiece(c);
                     col++;
                 }
+            }
+
+            if (parts.Length > 1)
+            {
+                CurrentTurn = parts[1] == "b"
+                    ? PieceColor.Black
+                    : PieceColor.White;
             }
 
             BoardChanged?.Invoke();
