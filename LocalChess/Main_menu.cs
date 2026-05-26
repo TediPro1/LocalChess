@@ -20,8 +20,9 @@ namespace LocalChess
             hidePassButton.BackgroundImage = View.Properties.Resources.show;
             join_pass_hide_button.BackgroundImage = View.Properties.Resources.show;
         }
+        private static string url = "https://unmoralizing-pryingly-olin.ngrok-free.dev";
         private readonly OfflineLobbyManager offlineLobbyManager = new();
-        private readonly OnlineLobbyManager onlineLobbyManager = new("http://localhost:5014");
+        private readonly OnlineLobbyManager onlineLobbyManager = new(url);
         private ILobbyManager CurrentLobbyManager => isOnlineCheckBox.Checked ? onlineLobbyManager : offlineLobbyManager;
         private void RefreshLobbyList()
         {
@@ -88,7 +89,7 @@ namespace LocalChess
             if (CurrentLobbyManager is OnlineLobbyManager)
             {
                 var session = new OnlineGameSession(
-                    "http://localhost:5014",
+                    url,
                     lobby.Id,
                     PieceColor.White
                 );
@@ -149,7 +150,7 @@ namespace LocalChess
             else
             {
                 var session = new OnlineGameSession(
-                    "http://localhost:5014",
+                    url,
                     lobby.Id,
                     PieceColor.Black
                 );
