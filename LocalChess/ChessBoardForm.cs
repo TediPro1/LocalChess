@@ -57,6 +57,7 @@ namespace LocalChess.View
             {
 
                 ClearSelection();
+                RefreshLivePositionHistory(true);
 
                 if (IsDisposed)
                     return;
@@ -86,19 +87,23 @@ namespace LocalChess.View
             playerColor = session.PlayerColor;
 
             CreateBoard();
+            RefreshLivePositionHistory(false);
             RenderGame();
             if (session.ArePlayersReady)
                 StartChessClock();
         }
         private readonly ChessGame previewGame = new();
+        private readonly ChessGame positionPreviewGame = new();
         private readonly IGameSession? session;
         private ChessGame game => session?.Game ?? previewGame;
+        private ChessGame displayedGame => isViewingHistoricalPosition ? positionPreviewGame : game;
         public Panel[,] Squares = new Panel[8, 8];
         private Point? selectedSquare = null;
         private List<Point> highlightedMoves = new();
         private readonly List<string> loadedPositions = new();
         private readonly List<MoveRecord> importedMoves = new();
         private int loadedPositionIndex = -1;
+        private bool isViewingHistoricalPosition;
         private static readonly TimeSpan startingClockTime = TimeSpan.FromMinutes(10);
         private TimeSpan whiteRemaining = startingClockTime;
         private TimeSpan blackRemaining = startingClockTime;
@@ -175,17 +180,20 @@ namespace LocalChess.View
         }
         private void RenderBoard()
         {
+            ChessGame boardGame = displayedGame;
+
             boardPanel.SuspendLayout();
 
             RedrawBoardColors();
 
-            HighlightLastMove();
+            if (!isViewingHistoricalPosition)
+                HighlightLastMove();
 
             for (int row = 0; row < 8; row++)
             {
                 for (int col = 0; col < 8; col++)
                 {
-                    ChessPiece? piece = game.Board.GetPiece(row, col);
+                    ChessPiece? piece = boardGame.Board.GetPiece(row, col);
 
                     if (piece == null)
                     {
@@ -199,9 +207,9 @@ namespace LocalChess.View
                 }
             }
 
-            HighlightCheckedKing();
+            HighlightCheckedKing(boardGame);
 
-            if (selectedSquare != null)
+            if (!isViewingHistoricalPosition && selectedSquare != null)
             {
                 HighlightSelectedSquare(selectedSquare.Value);
                 HighlightLegalMoves();
@@ -450,8 +458,53 @@ namespace LocalChess.View
 
             loadedPositionIndex = index;
             ClearSelection();
+
+            if (session != null)
+            {
+                isViewingHistoricalPosition = index < loadedPositions.Count - 1;
+
+                if (isViewingHistoricalPosition)
+                    positionPreviewGame.LoadFromFen(loadedPositions[index]);
+
+                RenderGame();
+                return;
+            }
+
             game.LoadFromFen(loadedPositions[index]);
-            RenderBoard();
+            RenderGame();
+        }
+
+        private void RefreshLivePositionHistory(bool keepHistoricalView)
+        {
+            if (session == null)
+                return;
+
+            int previousIndex = loadedPositionIndex;
+            bool wasViewingHistoricalPosition = isViewingHistoricalPosition;
+
+            loadedPositions.Clear();
+
+            if (!TryBuildPositionHistory(game.MoveHistory, loadedPositions))
+            {
+                loadedPositions.Add(game.ToFen());
+            }
+
+            if (loadedPositions.Count == 0)
+                loadedPositions.Add(game.ToFen());
+
+            if (keepHistoricalView && wasViewingHistoricalPosition && previousIndex >= 0)
+            {
+                loadedPositionIndex = Math.Min(previousIndex, loadedPositions.Count - 1);
+                isViewingHistoricalPosition = loadedPositionIndex < loadedPositions.Count - 1;
+
+                if (isViewingHistoricalPosition)
+                    positionPreviewGame.LoadFromFen(loadedPositions[loadedPositionIndex]);
+
+                return;
+            }
+
+            loadedPositionIndex = loadedPositions.Count - 1;
+            isViewingHistoricalPosition = false;
         }
 
         private static bool TryBuildPositionHistory(IEnumerable<MoveRecord> moves, List<string> positions)
@@ -522,17 +575,17 @@ namespace LocalChess.View
             return LicenseManager.UsageMode == LicenseUsageMode.Designtime ||
                    DesignMode;
         }
-        private void HighlightCheckedKing()
+        private void HighlightCheckedKing(ChessGame boardGame)
         {
-            if (game.IsKingInCheck(PieceColor.White))
+            if (boardGame.IsKingInCheck(PieceColor.White))
             {
-                Point kingPos = game.FindKing(PieceColor.White);
+                Point kingPos = boardGame.FindKing(PieceColor.White);
                 Squares[kingPos.X, kingPos.Y].BackColor = Color.FromArgb(220, 80, 80);
             }
 
-            if (game.IsKingInCheck(PieceColor.Black))
+            if (boardGame.IsKingInCheck(PieceColor.Black))
             {
-                Point kingPos = game.FindKing(PieceColor.Black);
+                Point kingPos = boardGame.FindKing(PieceColor.Black);
                 Squares[kingPos.X, kingPos.Y].BackColor = Color.FromArgb(220, 80, 80);
             }
         }
@@ -540,6 +593,9 @@ namespace LocalChess.View
         private async void Square_Click(object sender, EventArgs e)
         {
             if (session == null)
+                return;
+
+            if (isViewingHistoricalPosition)
                 return;
 
             Panel clicked = (Panel)sender;
@@ -571,10 +627,11 @@ namespace LocalChess.View
 
             Point from = selectedSquare.Value;
             Point to = position;
+            PieceType? promotion = ChoosePromotionForMove(from, to);
 
             ClearSelection();
 
-            if (await session.TryMoveAsync(from, to))
+            if (await session.TryMoveAsync(from, to, promotion))
             {
                 await HandleAfterMoveAsync();
             }
@@ -582,6 +639,29 @@ namespace LocalChess.View
             {
                 RenderBoard();
             }
+        }
+        private PieceType? ChoosePromotionForMove(Point from, Point to)
+        {
+            ChessPiece? movingPiece = game.Board.GetPiece(from.X, from.Y);
+
+            if (movingPiece == null || movingPiece.Type != PieceType.Pawn)
+                return null;
+
+            bool reachesPromotionRank = movingPiece.Color == PieceColor.White
+                ? to.X == 0
+                : to.X == 7;
+
+            if (!reachesPromotionRank)
+                return null;
+
+            if (!game.GetLegalMoves(from).Contains(to))
+                return null;
+
+            using Promote promoteForm = new Promote(movingPiece.Color);
+
+            return promoteForm.ShowDialog() == DialogResult.OK
+                ? promoteForm.SelectedPiece
+                : PieceType.Queen;
         }
         private void ClearSelection()
         {
@@ -597,18 +677,6 @@ namespace LocalChess.View
         }
         private async Task HandleAfterMoveAsync()
         {
-            ChessPiece? promotedPawn = game.GetPendingPromotionPiece();
-
-            if (promotedPawn != null)
-            {
-                using Promote promoteForm = new Promote(promotedPawn.Color);
-
-                if (promoteForm.ShowDialog() == DialogResult.OK)
-                    game.PromotePawn(promoteForm.SelectedPiece);
-                else
-                    game.PromotePawn(PieceType.Queen);
-            }
-
             if (game.IsCheckmate(game.CurrentTurn))
             {
                 GameResult result = game.CurrentTurn == PieceColor.White
