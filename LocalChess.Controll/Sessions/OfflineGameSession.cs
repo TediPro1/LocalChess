@@ -12,10 +12,12 @@ namespace LocalChess.Controll.Sessions
 
         public ChessGame Game => lobby.Game;
         public PieceColor PlayerColor { get; }
+        public bool ArePlayersReady => !lobby.IsWaiting;
 
         public string DisplayName => $"Offline Lobby {lobby.Name} ({PlayerColor})";
 
         public event Action? BoardChanged;
+        public event Action? PlayersReady;
 
         private readonly ILobbyManager lobbyManager;
         private readonly RemoteGameHistoryClient? gameHistoryClient;
@@ -40,6 +42,7 @@ namespace LocalChess.Controll.Sessions
 
             Game.BoardChanged += () => BoardChanged?.Invoke();
             lobby.GameEnded += OnLobbyGameEnded;
+            lobby.PlayersReady += OnLobbyPlayersReady;
 
             SubscribeGameSaving();
         }
@@ -62,11 +65,16 @@ namespace LocalChess.Controll.Sessions
             hasLeft = true;
 
             lobby.GameEnded -= OnLobbyGameEnded;
+            lobby.PlayersReady -= OnLobbyPlayersReady;
             await lobbyManager.LeaveLobbyAsync(lobby.Id, PlayerColor);
         }
         private void OnLobbyGameEnded(string message)
         {
             GameEnded?.Invoke(message);
+        }
+        private void OnLobbyPlayersReady()
+        {
+            PlayersReady?.Invoke();
         }
         protected void SubscribeGameSaving()
         {

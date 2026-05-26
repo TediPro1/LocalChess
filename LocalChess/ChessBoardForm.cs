@@ -27,6 +27,7 @@ namespace LocalChess.View
             if (IsInDesigner())
                 return;
 
+            InitializeChessClock();
             CreateBoard();
             RenderMoveHistory();
             RenderBoard();
@@ -50,6 +51,7 @@ namespace LocalChess.View
                 return;
 
             this.session = session;
+            InitializeChessClock();
 
             session.BoardChanged += () =>
             {
@@ -79,11 +81,14 @@ namespace LocalChess.View
                     await EndGameAsync(message);
                 }
             };
+            session.PlayersReady += OnPlayersReady;
 
             playerColor = session.PlayerColor;
 
             CreateBoard();
             RenderGame();
+            if (session.ArePlayersReady)
+                StartChessClock();
         }
         private readonly ChessGame previewGame = new();
         private readonly IGameSession? session;
@@ -94,6 +99,11 @@ namespace LocalChess.View
         private readonly List<string> loadedPositions = new();
         private readonly List<MoveRecord> importedMoves = new();
         private int loadedPositionIndex = -1;
+        private static readonly TimeSpan startingClockTime = TimeSpan.FromMinutes(10);
+        private TimeSpan whiteRemaining = startingClockTime;
+        private TimeSpan blackRemaining = startingClockTime;
+        private bool chessClockStarted;
+        private bool chessClockExpired;
 
         private readonly GameLobby lobby;
         private readonly PieceColor playerColor;
@@ -175,6 +185,123 @@ namespace LocalChess.View
         {
             RenderBoard();
             RenderMoveHistory();
+            RenderTurnAndClock();
+        }
+
+        private void InitializeChessClock()
+        {
+            white_time.Interval = 1000;
+            black_time.Interval = 1000;
+            white_time.Tick += white_time_Tick;
+            black_time.Tick += black_time_Tick;
+            RenderTurnAndClock();
+        }
+
+        private void StartChessClock()
+        {
+            if (session == null)
+                return;
+
+            if (chessClockStarted)
+                return;
+
+            chessClockStarted = true;
+            UpdateRunningClock();
+        }
+
+        private void OnPlayersReady()
+        {
+            if (IsDisposed)
+                return;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(StartChessClock));
+                return;
+            }
+
+            StartChessClock();
+        }
+
+        private void StopChessClock()
+        {
+            white_time.Stop();
+            black_time.Stop();
+        }
+
+        private void RenderTurnAndClock()
+        {
+            curr_turn_label.Text = $"Current turn: {game.CurrentTurn}";
+            white_timer_label.Text = FormatClockTime(whiteRemaining);
+            black_timer_label.Text = FormatClockTime(blackRemaining);
+            UpdateRunningClock();
+        }
+
+        private void UpdateRunningClock()
+        {
+            if (!chessClockStarted || chessClockExpired || session == null)
+            {
+                StopChessClock();
+                return;
+            }
+
+            if (game.CurrentTurn == PieceColor.White)
+            {
+                black_time.Stop();
+                white_time.Start();
+            }
+            else
+            {
+                white_time.Stop();
+                black_time.Start();
+            }
+        }
+
+        private static string FormatClockTime(TimeSpan time)
+        {
+            if (time < TimeSpan.Zero)
+                time = TimeSpan.Zero;
+
+            return time.TotalHours >= 1
+                ? time.ToString(@"h\:mm\:ss")
+                : time.ToString(@"mm\:ss");
+        }
+
+        private async void white_time_Tick(object? sender, EventArgs e)
+        {
+            whiteRemaining -= TimeSpan.FromSeconds(1);
+            white_timer_label.Text = FormatClockTime(whiteRemaining);
+
+            if (whiteRemaining <= TimeSpan.Zero)
+                await EndGameOnTimeoutAsync(PieceColor.White);
+        }
+
+        private async void black_time_Tick(object? sender, EventArgs e)
+        {
+            blackRemaining -= TimeSpan.FromSeconds(1);
+            black_timer_label.Text = FormatClockTime(blackRemaining);
+
+            if (blackRemaining <= TimeSpan.Zero)
+                await EndGameOnTimeoutAsync(PieceColor.Black);
+        }
+
+        private async Task EndGameOnTimeoutAsync(PieceColor expiredColor)
+        {
+            if (chessClockExpired || session == null)
+                return;
+
+            chessClockExpired = true;
+            StopChessClock();
+
+            GameResult result = expiredColor == PieceColor.White
+                ? GameResult.BlackWon
+                : GameResult.WhiteWon;
+
+            await session.EndGameAsync(
+                $"{expiredColor} ran out of time!",
+                result,
+                GameEndReason.Timeout
+            );
         }
         public void LoadPositionAndImportSavedMoves(SavedGame savedGame)
         {
@@ -561,7 +688,6 @@ namespace LocalChess.View
                 Squares[((Point)piece.Tag).X, ((Point)piece.Tag).Y],
                 e
             );
-            curr_turn_label.Text = $"Current turn: {game.CurrentTurn}";
         }
         public static Image GetPieceImage(ChessPiece piece)
         {
@@ -614,6 +740,7 @@ namespace LocalChess.View
 
         private async void ChessBoardForm_FormClosed(object sender, FormClosedEventArgs e)
         {
+            StopChessClock();
             await LeaveSessionOnceAsync();
         }
 
@@ -641,11 +768,14 @@ namespace LocalChess.View
             if (session == null)
                 return;
 
+            session.PlayersReady -= OnPlayersReady;
             session.BoardChanged -= RenderBoard;
             await session.LeaveAsync();
         }
         private async Task EndGameAsync(string message)
         {
+            chessClockExpired = true;
+            StopChessClock();
             MessageBox.Show(message);
 
             await LeaveSessionOnceAsync();

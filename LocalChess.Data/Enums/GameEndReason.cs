@@ -13,6 +13,7 @@ namespace LocalChess.Data.Enums
         InsufficientMaterial,
         Repetition,
         Resignation,
-        Abandoned
+        Abandoned,
+        Timeout
     }
 }

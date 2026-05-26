@@ -22,10 +22,16 @@ namespace LocalChess.Data.Entities
         public bool HasPassword => !string.IsNullOrWhiteSpace(Password);
 
         public event Action<string>? GameEnded;
+        public event Action? PlayersReady;
 
         public void EndGame(string message)
         {
             GameEnded?.Invoke(message);
+        }
+
+        public void NotifyPlayersReady()
+        {
+            PlayersReady?.Invoke();
         }
     }
 }

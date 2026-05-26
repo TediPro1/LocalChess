@@ -122,7 +122,8 @@ namespace LocalChess
                 var session = new OnlineGameSession(
                     url,
                     lobby.Id,
-                    PieceColor.White
+                    PieceColor.White,
+                    !lobby.IsWaiting
                 );
 
                 await session.StartAsync();
@@ -185,7 +186,8 @@ namespace LocalChess
                 var session = new OnlineGameSession(
                     url,
                     lobby.Id,
-                    PieceColor.Black
+                    PieceColor.Black,
+                    !lobby.IsWaiting
                 );
 
                 await session.StartAsync();

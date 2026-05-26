@@ -37,6 +37,9 @@ namespace LocalChess.Server.Hubs
 
             await Clients.All.SendAsync("LobbiesUpdated", lobbyManager.Lobbies.ToList());
 
+            if (lobby != null && !lobby.IsWaiting)
+                await Clients.Group(lobbyId).SendAsync("PlayersReady");
+
             return lobby;
         }
 

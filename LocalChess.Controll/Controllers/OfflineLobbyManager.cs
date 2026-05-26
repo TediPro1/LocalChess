@@ -59,6 +59,7 @@ namespace LocalChess.Controll.Controllers
 
             lobby.BlackConnected = true;
             LobbiesChanged?.Invoke();
+            lobby.NotifyPlayersReady();
 
             return Task.FromResult<LobbyDTO?>(ToDto(lobby));
         }

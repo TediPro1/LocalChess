@@ -14,7 +14,10 @@ namespace LocalChess.Controll.Interfaces
         ChessGame Game { get; }
         PieceColor PlayerColor { get; }
         string DisplayName { get; }
-        event Action? BoardChanged; event Action<string>? GameEnded;
+        bool ArePlayersReady { get; }
+        event Action? BoardChanged;
+        event Action? PlayersReady;
+        event Action<string>? GameEnded;
         Task EndGameAsync(string message, GameResult result, GameEndReason reason);
         Task<bool> TryMoveAsync(Point from, Point to, PieceType? promotion = null);
         Task LeaveAsync();

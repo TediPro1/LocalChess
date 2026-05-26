@@ -12,6 +12,7 @@ namespace LocalChess.Controll.Sessions
     {
         public ChessGame Game { get; } = new ChessGame();
         public PieceColor PlayerColor { get; }
+        public bool ArePlayersReady => arePlayersReady;
 
         private readonly HubConnection connection;
         private readonly RemoteGameHistoryClient gameHistoryClient;
@@ -19,13 +20,16 @@ namespace LocalChess.Controll.Sessions
         public string DisplayName => $"Online Lobby {lobbyId} ({PlayerColor})";
 
         public event Action? BoardChanged;
+        public event Action? PlayersReady;
         public event Action<string>? GameEnded;
         private bool hasLeft;
+        private bool arePlayersReady;
 
-        public OnlineGameSession(string serverUrl, string lobbyId, PieceColor playerColor)
+        public OnlineGameSession(string serverUrl, string lobbyId, PieceColor playerColor, bool arePlayersReady = false)
         {
             this.lobbyId = lobbyId;
             PlayerColor = playerColor;
+            this.arePlayersReady = arePlayersReady;
             gameHistoryClient = new RemoteGameHistoryClient(serverUrl);
 
             connection = new HubConnectionBuilder()
@@ -48,6 +52,8 @@ namespace LocalChess.Controll.Sessions
                 BoardChanged?.Invoke();
             });
 
+            connection.On("PlayersReady", NotifyPlayersReady);
+
             connection.On<GameEndedDTO>("GameEnded", async dto =>
             {
                 GameEnded?.Invoke(dto.Message);
@@ -55,6 +61,15 @@ namespace LocalChess.Controll.Sessions
             });
 
             SubscribeGameSaving();
+        }
+
+        private void NotifyPlayersReady()
+        {
+            if (arePlayersReady)
+                return;
+
+            arePlayersReady = true;
+            PlayersReady?.Invoke();
         }
 
         public async Task StartAsync()
