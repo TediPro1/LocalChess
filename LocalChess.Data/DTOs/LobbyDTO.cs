@@ -4,6 +4,8 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
+using LocalChess.Data.Enums;
+
 namespace LocalChess.Data.DTOs
 {
     public class LobbyDTO
@@ -12,6 +14,7 @@ namespace LocalChess.Data.DTOs
         public string Name { get; set; } = "";
         public bool HasPassword { get; set; }
         public bool IsWaiting { get; set; }
+        public PieceColor? AssignedColor { get; set; }
 
         public override string ToString()
         {

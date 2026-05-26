@@ -119,10 +119,12 @@ namespace LocalChess
 
             if (CurrentLobbyManager is OnlineLobbyManager)
             {
+                PieceColor assignedColor = lobby.AssignedColor ?? PieceColor.White;
+
                 var session = new OnlineGameSession(
                     url,
                     lobby.Id,
-                    PieceColor.White,
+                    assignedColor,
                     !lobby.IsWaiting
                 );
 
@@ -138,7 +140,7 @@ namespace LocalChess
                 gameForm = new ChessBoardForm(
                     offlineManager,
                     realLobby,
-                    PieceColor.White,
+                    lobby.AssignedColor ?? PieceColor.White,
                     url
                     );
             }
@@ -177,16 +179,18 @@ namespace LocalChess
                 gameForm = new ChessBoardForm(
                     offlineManager,
                     realLobby,
-                    PieceColor.Black,
+                    lobby.AssignedColor ?? PieceColor.Black,
                     url
                 );
             }
             else
             {
+                PieceColor assignedColor = lobby.AssignedColor ?? PieceColor.Black;
+
                 var session = new OnlineGameSession(
                     url,
                     lobby.Id,
-                    PieceColor.Black,
+                    assignedColor,
                     !lobby.IsWaiting
                 );
 

@@ -15,15 +15,16 @@ namespace LocalChess.Controll.Controllers
         private readonly List<GameLobby> lobbies = new();
 
         public IReadOnlyList<LobbyDTO> Lobbies =>
-            lobbies.Select(ToDto).ToList();
-        private static LobbyDTO ToDto(GameLobby lobby)
+            lobbies.Select(lobby => ToDto(lobby)).ToList();
+        private static LobbyDTO ToDto(GameLobby lobby, PieceColor? assignedColor = null)
         {
             return new LobbyDTO
             {
                 Id = lobby.Id,
                 Name = lobby.Name,
                 HasPassword = lobby.HasPassword,
-                IsWaiting = lobby.IsWaiting
+                IsWaiting = lobby.IsWaiting,
+                AssignedColor = assignedColor
             };
         }
         public GameLobby? GetLocalLobby(string lobbyId)
@@ -32,19 +33,23 @@ namespace LocalChess.Controll.Controllers
         }
         public Task<LobbyDTO> CreateLobbyAsync(string name, string? password)
         {
+            PieceColor creatorColor = Random.Shared.Next(2) == 0
+                ? PieceColor.White
+                : PieceColor.Black;
+
             var lobby = new GameLobby
             {
                 Id = Guid.NewGuid().ToString(),
                 Name = name,
                 Password = string.IsNullOrWhiteSpace(password) ? null : password,
-                WhiteConnected = true,
-                BlackConnected = false
+                WhiteConnected = creatorColor == PieceColor.White,
+                BlackConnected = creatorColor == PieceColor.Black
             };
 
             lobbies.Add(lobby);
             LobbiesChanged?.Invoke();
 
-            return Task.FromResult(ToDto(lobby));
+            return Task.FromResult(ToDto(lobby, creatorColor));
         }
 
         public Task<LobbyDTO?> JoinLobbyAsync(string lobbyId, string? password)
@@ -57,11 +62,27 @@ namespace LocalChess.Controll.Controllers
             if (lobby.HasPassword && lobby.Password != password)
                 return Task.FromResult<LobbyDTO?>(null);
 
-            lobby.BlackConnected = true;
+            PieceColor joinedColor;
+
+            if (!lobby.WhiteConnected)
+            {
+                lobby.WhiteConnected = true;
+                joinedColor = PieceColor.White;
+            }
+            else if (!lobby.BlackConnected)
+            {
+                lobby.BlackConnected = true;
+                joinedColor = PieceColor.Black;
+            }
+            else
+            {
+                return Task.FromResult<LobbyDTO?>(null);
+            }
+
             LobbiesChanged?.Invoke();
             lobby.NotifyPlayersReady();
 
-            return Task.FromResult<LobbyDTO?>(ToDto(lobby));
+            return Task.FromResult<LobbyDTO?>(ToDto(lobby, joinedColor));
         }
 
         public Task LeaveLobbyAsync(string lobbyId, PieceColor color)

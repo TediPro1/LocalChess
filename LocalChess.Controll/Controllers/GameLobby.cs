@@ -18,7 +18,7 @@ namespace LocalChess.Data.Entities
         public bool WhiteConnected { get; set; }
         public bool BlackConnected { get; set; }
 
-        public bool IsWaiting => !BlackConnected;
+        public bool IsWaiting => !WhiteConnected || !BlackConnected;
         public bool HasPassword => !string.IsNullOrWhiteSpace(Password);
 
         public event Action<string>? GameEnded;

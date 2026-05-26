@@ -104,6 +104,8 @@ namespace LocalChess.View
         private TimeSpan blackRemaining = startingClockTime;
         private bool chessClockStarted;
         private bool chessClockExpired;
+        private Point? originalWhiteTimerLocation;
+        private Point? originalBlackTimerLocation;
 
         private readonly GameLobby lobby;
         private readonly PieceColor playerColor;
@@ -112,6 +114,7 @@ namespace LocalChess.View
         private void CreateBoard()
         {
             Text = session?.DisplayName ?? "Game Preview";
+            ApplyPlayerOrientation();
             boardPanel.Controls.Clear();
 
             boardPanel.RowCount = 8;
@@ -140,9 +143,34 @@ namespace LocalChess.View
 
                     square.Click += Square_Click;
 
-                    boardPanel.Controls.Add(square, col, row);
+                    int displayRow = ShouldMirrorBoard() ? 7 - row : row;
+                    int displayCol = ShouldMirrorBoard() ? 7 - col : col;
+
+                    boardPanel.Controls.Add(square, displayCol, displayRow);
                     Squares[row, col] = square;
                 }
+            }
+        }
+
+        private bool ShouldMirrorBoard()
+        {
+            return session != null && playerColor == PieceColor.Black;
+        }
+
+        private void ApplyPlayerOrientation()
+        {
+            originalWhiteTimerLocation ??= white_timer_label.Location;
+            originalBlackTimerLocation ??= black_timer_label.Location;
+
+            if (ShouldMirrorBoard())
+            {
+                white_timer_label.Location = originalBlackTimerLocation.Value;
+                black_timer_label.Location = originalWhiteTimerLocation.Value;
+            }
+            else
+            {
+                white_timer_label.Location = originalWhiteTimerLocation.Value;
+                black_timer_label.Location = originalBlackTimerLocation.Value;
             }
         }
         private void RenderBoard()
@@ -216,10 +244,15 @@ namespace LocalChess.View
 
             if (InvokeRequired)
             {
-                BeginInvoke(new Action(StartChessClock));
+                BeginInvoke(new Action(() =>
+                {
+                    RenderTurnAndClock();
+                    StartChessClock();
+                }));
                 return;
             }
 
+            RenderTurnAndClock();
             StartChessClock();
         }
 
@@ -231,10 +264,23 @@ namespace LocalChess.View
 
         private void RenderTurnAndClock()
         {
-            curr_turn_label.Text = $"Current turn: {game.CurrentTurn}";
+            curr_turn_label.Text = GetCurrentTurnText();
             white_timer_label.Text = FormatClockTime(whiteRemaining);
             black_timer_label.Text = FormatClockTime(blackRemaining);
             UpdateRunningClock();
+        }
+
+        private string GetCurrentTurnText()
+        {
+            if (session == null)
+                return $"Current turn: {game.CurrentTurn}";
+
+            if (!session.ArePlayersReady)
+                return "Waiting for opponent";
+
+            return game.CurrentTurn == playerColor
+                ? $"Your turn ({game.CurrentTurn})"
+                : $"Opponent turn ({game.CurrentTurn})";
         }
 
         private void UpdateRunningClock()
@@ -324,6 +370,7 @@ namespace LocalChess.View
                 .ToList();
 
             LoadPositionAndImportSavedMoves(savedGame.FinalFen, moves);
+            RenderMoveHistory(); //do not remove vro!!!
         }
 
         public void LoadPositionAndImportSavedMoves(SavedGameDTO savedGame)

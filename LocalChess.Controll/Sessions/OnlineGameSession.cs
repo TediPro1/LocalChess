@@ -146,7 +146,10 @@ namespace LocalChess.Controll.Sessions
             hasLeft = true;
 
             if (connection.State == HubConnectionState.Connected)
+            {
+                await connection.InvokeAsync("LeaveLobby", lobbyId, PlayerColor);
                 await connection.InvokeAsync("LeaveGameGroup", lobbyId);
+            }
 
             await connection.DisposeAsync();
         }
