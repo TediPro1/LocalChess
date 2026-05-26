@@ -39,6 +39,10 @@
             black_time = new System.Windows.Forms.Timer(components);
             black_timer_label = new Label();
             white_timer_label = new Label();
+            white_taken_piece_panel = new FlowLayoutPanel();
+            black_taken_piece_panel = new FlowLayoutPanel();
+            white_material_label = new Label();
+            black_material_label = new Label();
             SuspendLayout();
             // 
             // boardPanel
@@ -57,17 +61,17 @@
             // moveHistoryListBox
             // 
             moveHistoryListBox.FormattingEnabled = true;
-            moveHistoryListBox.Location = new Point(781, 109);
+            moveHistoryListBox.Location = new Point(781, 150);
             moveHistoryListBox.Margin = new Padding(3, 4, 3, 4);
             moveHistoryListBox.Name = "moveHistoryListBox";
-            moveHistoryListBox.Size = new Size(169, 564);
+            moveHistoryListBox.Size = new Size(169, 464);
             moveHistoryListBox.TabIndex = 1;
             // 
             // button1
             // 
             button1.FlatStyle = FlatStyle.Flat;
             button1.Font = new Font("Symbol", 9F);
-            button1.Location = new Point(782, 673);
+            button1.Location = new Point(782, 613);
             button1.Margin = new Padding(3, 4, 3, 4);
             button1.Name = "button1";
             button1.Size = new Size(85, 31);
@@ -80,7 +84,7 @@
             // 
             button2.FlatStyle = FlatStyle.Flat;
             button2.Font = new Font("Symbol", 9F);
-            button2.Location = new Point(864, 673);
+            button2.Location = new Point(864, 613);
             button2.Margin = new Padding(3, 4, 3, 4);
             button2.Name = "button2";
             button2.Size = new Size(86, 31);
@@ -102,7 +106,7 @@
             // 
             black_timer_label.AutoSize = true;
             black_timer_label.Font = new Font("Segoe UI", 18F);
-            black_timer_label.Location = new Point(822, 64);
+            black_timer_label.Location = new Point(849, 39);
             black_timer_label.Name = "black_timer_label";
             black_timer_label.Size = new Size(89, 41);
             black_timer_label.TabIndex = 5;
@@ -112,11 +116,47 @@
             // 
             white_timer_label.AutoSize = true;
             white_timer_label.Font = new Font("Segoe UI", 18F);
-            white_timer_label.Location = new Point(822, 708);
+            white_timer_label.Location = new Point(849, 703);
             white_timer_label.Name = "white_timer_label";
             white_timer_label.Size = new Size(89, 41);
             white_timer_label.TabIndex = 5;
             white_timer_label.Text = "00:00";
+            // 
+            // white_taken_piece_panel
+            // 
+            white_taken_piece_panel.AutoScroll = true;
+            white_taken_piece_panel.Location = new Point(782, 88);
+            white_taken_piece_panel.Name = "white_taken_piece_panel";
+            white_taken_piece_panel.Size = new Size(168, 55);
+            white_taken_piece_panel.TabIndex = 6;
+            white_taken_piece_panel.WrapContents = false;
+            // 
+            // black_taken_piece_panel
+            // 
+            black_taken_piece_panel.AutoScroll = true;
+            black_taken_piece_panel.Location = new Point(782, 644);
+            black_taken_piece_panel.Name = "black_taken_piece_panel";
+            black_taken_piece_panel.Size = new Size(168, 55);
+            black_taken_piece_panel.TabIndex = 6;
+            black_taken_piece_panel.WrapContents = false;
+            // 
+            // white_material_label
+            // 
+            white_material_label.AutoSize = true;
+            white_material_label.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            white_material_label.Location = new Point(785, 54);
+            white_material_label.Name = "white_material_label";
+            white_material_label.Size = new Size(0, 23);
+            white_material_label.TabIndex = 7;
+            // 
+            // black_material_label
+            // 
+            black_material_label.AutoSize = true;
+            black_material_label.Font = new Font("Segoe UI", 10F, FontStyle.Bold);
+            black_material_label.Location = new Point(788, 718);
+            black_material_label.Name = "black_material_label";
+            black_material_label.Size = new Size(0, 23);
+            black_material_label.TabIndex = 7;
             // 
             // ChessBoardForm
             // 
@@ -124,6 +164,10 @@
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
             ClientSize = new Size(950, 753);
+            Controls.Add(black_material_label);
+            Controls.Add(white_material_label);
+            Controls.Add(black_taken_piece_panel);
+            Controls.Add(white_taken_piece_panel);
             Controls.Add(white_timer_label);
             Controls.Add(black_timer_label);
             Controls.Add(curr_turn_label);
@@ -153,5 +197,9 @@
         private System.Windows.Forms.Timer black_time;
         private Label black_timer_label;
         private Label white_timer_label;
+        private FlowLayoutPanel white_taken_piece_panel;
+        private FlowLayoutPanel black_taken_piece_panel;
+        private Label white_material_label;
+        private Label black_material_label;
     }
 }

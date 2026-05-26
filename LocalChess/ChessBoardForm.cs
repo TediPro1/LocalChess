@@ -31,6 +31,7 @@ namespace LocalChess.View
             CreateBoard();
             RenderMoveHistory();
             RenderBoard();
+            RenderCapturedMaterial();
         }
 
         public ChessBoardForm(SavedGame savedGame) : this()
@@ -111,6 +112,19 @@ namespace LocalChess.View
         private bool chessClockExpired;
         private Point? originalWhiteTimerLocation;
         private Point? originalBlackTimerLocation;
+        private Point? originalWhiteTakenPanelLocation;
+        private Point? originalBlackTakenPanelLocation;
+        private Point? originalWhiteMaterialLabelLocation;
+        private Point? originalBlackMaterialLabelLocation;
+        private static readonly Dictionary<PieceType, int> startingPieceCounts = new()
+        {
+            [PieceType.Pawn] = 8,
+            [PieceType.Knight] = 2,
+            [PieceType.Bishop] = 2,
+            [PieceType.Rook] = 2,
+            [PieceType.Queen] = 1,
+            [PieceType.King] = 1
+        };
 
         private readonly GameLobby lobby;
         private readonly PieceColor playerColor;
@@ -166,16 +180,28 @@ namespace LocalChess.View
         {
             originalWhiteTimerLocation ??= white_timer_label.Location;
             originalBlackTimerLocation ??= black_timer_label.Location;
+            originalWhiteTakenPanelLocation ??= white_taken_piece_panel.Location;
+            originalBlackTakenPanelLocation ??= black_taken_piece_panel.Location;
+            originalWhiteMaterialLabelLocation ??= white_material_label.Location;
+            originalBlackMaterialLabelLocation ??= black_material_label.Location;
 
             if (ShouldMirrorBoard())
             {
                 white_timer_label.Location = originalBlackTimerLocation.Value;
                 black_timer_label.Location = originalWhiteTimerLocation.Value;
+                white_taken_piece_panel.Location = originalBlackTakenPanelLocation.Value;
+                black_taken_piece_panel.Location = originalWhiteTakenPanelLocation.Value;
+                white_material_label.Location = originalBlackMaterialLabelLocation.Value;
+                black_material_label.Location = originalWhiteMaterialLabelLocation.Value;
             }
             else
             {
                 white_timer_label.Location = originalWhiteTimerLocation.Value;
                 black_timer_label.Location = originalBlackTimerLocation.Value;
+                white_taken_piece_panel.Location = originalWhiteTakenPanelLocation.Value;
+                black_taken_piece_panel.Location = originalBlackTakenPanelLocation.Value;
+                white_material_label.Location = originalWhiteMaterialLabelLocation.Value;
+                black_material_label.Location = originalBlackMaterialLabelLocation.Value;
             }
         }
         private void RenderBoard()
@@ -220,8 +246,139 @@ namespace LocalChess.View
         private void RenderGame()
         {
             RenderBoard();
+            RenderCapturedMaterial();
             RenderMoveHistory();
             RenderTurnAndClock();
+        }
+
+        private void RenderCapturedMaterial()
+        {
+            ChessGame boardGame = displayedGame;
+            Dictionary<PieceColor, Dictionary<PieceType, int>> pieceCounts = CountPieces(boardGame);
+
+            List<ChessPiece> piecesCapturedByWhite = GetCapturedPieces(pieceCounts, PieceColor.Black);
+            List<ChessPiece> piecesCapturedByBlack = GetCapturedPieces(pieceCounts, PieceColor.White);
+
+            RenderCapturedPieces(white_taken_piece_panel, piecesCapturedByWhite);
+            RenderCapturedPieces(black_taken_piece_panel, piecesCapturedByBlack);
+
+            int whiteMaterial = GetMaterialScore(pieceCounts[PieceColor.White]);
+            int blackMaterial = GetMaterialScore(pieceCounts[PieceColor.Black]);
+            int whiteLead = whiteMaterial - blackMaterial;
+            int blackLead = blackMaterial - whiteMaterial;
+
+            white_material_label.Text = whiteLead > 0 ? $"+{whiteLead}" : "";
+            black_material_label.Text = blackLead > 0 ? $"+{blackLead}" : "";
+        }
+
+        private static Dictionary<PieceColor, Dictionary<PieceType, int>> CountPieces(ChessGame boardGame)
+        {
+            var counts = new Dictionary<PieceColor, Dictionary<PieceType, int>>
+            {
+                [PieceColor.White] = CreateEmptyPieceCount(),
+                [PieceColor.Black] = CreateEmptyPieceCount()
+            };
+
+            for (int row = 0; row < 8; row++)
+            {
+                for (int col = 0; col < 8; col++)
+                {
+                    ChessPiece? piece = boardGame.Board.GetPiece(row, col);
+
+                    if (piece == null)
+                        continue;
+
+                    counts[piece.Color][piece.Type]++;
+                }
+            }
+
+            return counts;
+        }
+
+        private static Dictionary<PieceType, int> CreateEmptyPieceCount()
+        {
+            return Enum.GetValues<PieceType>()
+                .ToDictionary(pieceType => pieceType, _ => 0);
+        }
+
+        private static List<ChessPiece> GetCapturedPieces(
+            Dictionary<PieceColor, Dictionary<PieceType, int>> pieceCounts,
+            PieceColor capturedColor)
+        {
+            List<ChessPiece> capturedPieces = new();
+
+            foreach (PieceType pieceType in GetCapturedPieceDisplayOrder())
+            {
+                int startingCount = startingPieceCounts[pieceType];
+                int currentCount = pieceCounts[capturedColor][pieceType];
+                int capturedCount = Math.Max(0, startingCount - currentCount);
+
+                for (int i = 0; i < capturedCount; i++)
+                    capturedPieces.Add(new ChessPiece(pieceType, capturedColor));
+            }
+
+            return capturedPieces;
+        }
+
+        private static IEnumerable<PieceType> GetCapturedPieceDisplayOrder()
+        {
+            yield return PieceType.Queen;
+            yield return PieceType.Rook;
+            yield return PieceType.Bishop;
+            yield return PieceType.Knight;
+            yield return PieceType.Pawn;
+        }
+
+        private void RenderCapturedPieces(FlowLayoutPanel panel, IEnumerable<ChessPiece> capturedPieces)
+        {
+            panel.SuspendLayout();
+            panel.Controls.Clear();
+            panel.WrapContents = false;
+            panel.AutoScroll = true;
+            panel.FlowDirection = FlowDirection.LeftToRight;
+            panel.HorizontalScroll.Enabled = true;
+            panel.HorizontalScroll.Visible = true;
+
+            int imageSize = Math.Max(20, Math.Min(30, panel.ClientSize.Height - 8));
+
+            foreach (ChessPiece piece in capturedPieces)
+            {
+                PictureBox pictureBox = new()
+                {
+                    Image = GetPieceImage(piece),
+                    SizeMode = PictureBoxSizeMode.StretchImage,
+                    Width = imageSize,
+                    Height = imageSize,
+                    Margin = new Padding(1)
+                };
+
+                panel.Controls.Add(pictureBox);
+            }
+
+            panel.ResumeLayout();
+        }
+
+        private static int GetMaterialScore(Dictionary<PieceType, int> pieceCounts)
+        {
+            int score = 0;
+
+            foreach (KeyValuePair<PieceType, int> pieceCount in pieceCounts)
+                score += GetPieceValue(pieceCount.Key) * pieceCount.Value;
+
+            return score;
+        }
+
+        private static int GetPieceValue(PieceType pieceType)
+        {
+            return pieceType switch
+            {
+                PieceType.Pawn => 1,
+                PieceType.Knight => 3,
+                PieceType.Bishop => 3,
+                PieceType.Rook => 5,
+                PieceType.Queen => 9,
+                _ => 0
+            };
         }
 
         private void InitializeChessClock()

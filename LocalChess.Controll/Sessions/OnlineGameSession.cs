@@ -18,7 +18,7 @@ namespace LocalChess.Controll.Sessions
         private readonly RemoteGameHistoryClient gameHistoryClient;
         private readonly string lobbyId;
         private readonly string lobbyName;
-        public string DisplayName => $"Game Control - {lobbyName} ({PlayerColor})";
+        public string DisplayName => $"Online Lobby - {lobbyName} ({PlayerColor})";
 
         public event Action? BoardChanged;
         public event Action? PlayersReady;
