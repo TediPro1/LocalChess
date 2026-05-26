@@ -1,6 +1,5 @@
 ﻿using LocalChess.Controll.Controllers;
 using LocalChess.Controll.Interfaces;
-using LocalChess.Data.Data;
 using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
 using System.Drawing;
@@ -19,6 +18,7 @@ namespace LocalChess.Controll.Sessions
         public event Action? BoardChanged;
 
         private readonly ILobbyManager lobbyManager;
+        private readonly RemoteGameHistoryClient? gameHistoryClient;
         public event Action<string>? GameEnded;
         private bool hasLeft;
 
@@ -28,12 +28,15 @@ namespace LocalChess.Controll.Sessions
             lobby.EndGame(message);
         }
 
-        public OfflineGameSession(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor)
+        public OfflineGameSession(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor, string? serverUrl = null)
         {
             this.lobbyManager = lobbyManager;
             this.lobby = lobby;
 
             PlayerColor = playerColor;
+            gameHistoryClient = string.IsNullOrWhiteSpace(serverUrl)
+                ? null
+                : new RemoteGameHistoryClient(serverUrl);
 
             Game.BoardChanged += () => BoardChanged?.Invoke();
             lobby.GameEnded += OnLobbyGameEnded;
@@ -78,12 +81,12 @@ namespace LocalChess.Controll.Sessions
             if (Game.WasSaved)
                 return;
 
+            if (gameHistoryClient == null)
+                return;
+
             Game.WasSaved = true;
 
-            using ChessContext context = new();
-            GameSaveService saver = new(context);
-
-            await saver.SaveGameAsync(
+            await gameHistoryClient.SaveCompletedGameAsync(
                 Game,
                 lobby.Name,
                 false,

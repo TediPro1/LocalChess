@@ -15,7 +15,6 @@ using System.Resources;
 using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory.Database;
 
 namespace LocalChess.View
 {
@@ -38,6 +37,11 @@ namespace LocalChess.View
             LoadPositionAndImportSavedMoves(savedGame);
         }
 
+        public ChessBoardForm(SavedGameDTO savedGame) : this()
+        {
+            LoadPositionAndImportSavedMoves(savedGame);
+        }
+
         public ChessBoardForm(IGameSession session)
         {
             InitializeComponent();
@@ -56,9 +60,9 @@ namespace LocalChess.View
                     return;
 
                 if (InvokeRequired)
-                    BeginInvoke(new Action(RenderBoard));
+                    BeginInvoke(new Action(RenderGame));
                 else
-                    RenderBoard();
+                    RenderGame();
             };
 
             session.GameEnded += async message =>
@@ -79,8 +83,7 @@ namespace LocalChess.View
             playerColor = session.PlayerColor;
 
             CreateBoard();
-            RenderBoard();
-            RenderMoveHistory();
+            RenderGame();
         }
         private readonly ChessGame previewGame = new();
         private readonly IGameSession? session;
@@ -94,7 +97,8 @@ namespace LocalChess.View
 
         private readonly GameLobby lobby;
         private readonly PieceColor playerColor;
-        public ChessBoardForm(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor) : this(new OfflineGameSession(lobbyManager, lobby, playerColor)) { }
+        public ChessBoardForm(ILobbyManager lobbyManager, GameLobby lobby, PieceColor playerColor, string? serverUrl = null)
+            : this(new OfflineGameSession(lobbyManager, lobby, playerColor, serverUrl)) { }
         private void CreateBoard()
         {
             Text = session?.DisplayName ?? "Game Preview";
@@ -167,7 +171,35 @@ namespace LocalChess.View
 
             boardPanel.ResumeLayout();
         }
+        private void RenderGame()
+        {
+            RenderBoard();
+            RenderMoveHistory();
+        }
         public void LoadPositionAndImportSavedMoves(SavedGame savedGame)
+        {
+            if (savedGame == null)
+                throw new ArgumentNullException(nameof(savedGame));
+
+            List<MoveRecord> moves = savedGame.Moves
+                .OrderBy(move => move.MoveNumber)
+                .ThenBy(move => move.Id)
+                .Select(move => new MoveRecord
+                {
+                    MoveNumber = move.MoveNumber,
+                    Color = move.Color,
+                    FromSquare = move.FromSquare,
+                    ToSquare = move.ToSquare,
+                    Notation = move.Notation,
+                    PromotionPiece = move.PromotionPiece,
+                    PlayedAt = move.PlayedAt
+                })
+                .ToList();
+
+            LoadPositionAndImportSavedMoves(savedGame.FinalFen, moves);
+        }
+
+        public void LoadPositionAndImportSavedMoves(SavedGameDTO savedGame)
         {
             if (savedGame == null)
                 throw new ArgumentNullException(nameof(savedGame));
@@ -529,7 +561,7 @@ namespace LocalChess.View
                 Squares[((Point)piece.Tag).X, ((Point)piece.Tag).Y],
                 e
             );
-            label1.Text = $"Current turn: {game.CurrentTurn}";
+            curr_turn_label.Text = $"Current turn: {game.CurrentTurn}";
         }
         public static Image GetPieceImage(ChessPiece piece)
         {
@@ -572,7 +604,8 @@ namespace LocalChess.View
                 case (PieceType.Pawn, PieceColor.Black):
                     result = (Bitmap)ResourceManager.GetObject("Pawn_B", resourceCulture);
                     break;
-                default: throw new Exception("Unknown piece");
+                default:
+                    throw new Exception("Unknown piece");
             }
             return result;
         }
@@ -618,6 +651,11 @@ namespace LocalChess.View
             await LeaveSessionOnceAsync();
 
             Close();
+        }
+
+        private void ChessBoardForm_Load(object sender, EventArgs e)
+        {
+
         }
     }
 }

@@ -1,6 +1,5 @@
 ﻿using LocalChess.Controll.Controllers;
 using LocalChess.Controll.Interfaces;
-using LocalChess.Data.Data;
 using LocalChess.Data.DTOs;
 using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
@@ -15,6 +14,7 @@ namespace LocalChess.Controll.Sessions
         public PieceColor PlayerColor { get; }
 
         private readonly HubConnection connection;
+        private readonly RemoteGameHistoryClient gameHistoryClient;
         private readonly string lobbyId;
         public string DisplayName => $"Online Lobby {lobbyId} ({PlayerColor})";
 
@@ -26,6 +26,7 @@ namespace LocalChess.Controll.Sessions
         {
             this.lobbyId = lobbyId;
             PlayerColor = playerColor;
+            gameHistoryClient = new RemoteGameHistoryClient(serverUrl);
 
             connection = new HubConnectionBuilder()
                 .WithUrl($"{serverUrl}/chesshub")
@@ -101,10 +102,7 @@ namespace LocalChess.Controll.Sessions
 
             Game.WasSaved = true;
 
-            using ChessContext context = new();
-            GameSaveService saver = new(context);
-
-            await saver.SaveGameAsync(
+            await gameHistoryClient.SaveCompletedGameAsync(
                 Game,
                 lobbyId,
                 true,

@@ -1,6 +1,6 @@
 ﻿using LocalChess.Data.Entities;
+using LocalChess.Data.DTOs;
 using LocalChess.Data.Enums;
-using LocalChess.Data.Data;
 using System;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -15,12 +15,12 @@ namespace LocalChess.View
 {
     public partial class ShowChessGame : UserControl
     {
-        public ShowChessGame(SavedGame savedGame)
+        public ShowChessGame(SavedGameDTO savedGame)
         {
             InitializeComponent();
             SavedGame = savedGame;
         }
-        public SavedGame SavedGame { get; }
+        public SavedGameDTO SavedGame { get; }
 
         private void ShowChessGame_Load(object sender, EventArgs e)
         {
@@ -120,26 +120,8 @@ namespace LocalChess.View
 
         private void button1_Click(object sender, EventArgs e)
         {
-            LoadSavedMovesFromDatabase();
-
             using ChessBoardForm form = new ChessBoardForm(SavedGame);
             form.ShowDialog();
-        }
-
-        private void LoadSavedMovesFromDatabase()
-        {
-            if (SavedGame.Moves.Count > 0)
-                return;
-
-            using ChessContext context = new();
-
-            List<SavedMove> moves = context.SavedMoves
-                .Where(move => move.SavedGameId == SavedGame.Id)
-                .OrderBy(move => move.MoveNumber)
-                .ThenBy(move => move.Id)
-                .ToList();
-
-            SavedGame.Moves.AddRange(moves);
         }
     }
 }

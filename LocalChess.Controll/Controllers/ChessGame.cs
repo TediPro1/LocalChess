@@ -50,10 +50,10 @@ namespace LocalChess.Data.Entities
 
             bool isEnPassant = IsEnPassantMove(piece, from, to);
             bool isCastling = IsCastlingMove(piece, from, to);
+            ChessPiece? capturedPiece = Board.GetPiece(to.X, to.Y);
+            string notation = BuildMoveNotation(piece, capturedPiece, from, to, isEnPassant, isCastling);
 
             ExecuteMove(from, to, isEnPassant, isCastling);
-
-            BoardChanged?.Invoke();
 
             CheckGameEnd();
 
@@ -63,8 +63,6 @@ namespace LocalChess.Data.Entities
             PieceColor opponent = CurrentTurn = CurrentTurn == PieceColor.White
                 ? PieceColor.Black
                 : PieceColor.White;
-
-            string notation = BuildMoveNotation(from, to, isEnPassant, isCastling);
 
             if (IsCheckmate(opponent))
                 notation += "#";
@@ -81,6 +79,7 @@ namespace LocalChess.Data.Entities
             });
 
             SaveCurrentPosition();
+            BoardChanged?.Invoke();
 
             return true;
         }
@@ -125,14 +124,8 @@ namespace LocalChess.Data.Entities
 
             return sb.ToString();
         }
-        private string BuildMoveNotation(Point from, Point to, bool isEnPassant, bool isCastling)
+        private string BuildMoveNotation(ChessPiece piece, ChessPiece? target, Point from, Point to, bool isEnPassant, bool isCastling)
         {
-            ChessPiece? piece = Board.GetPiece(from.X, from.Y);
-            ChessPiece? target = Board.GetPiece(to.X, to.Y);
-
-            if (piece == null)
-                return "";
-
             if (isCastling)
                 return to.Y > from.Y ? "O-O" : "O-O-O";
 
@@ -307,7 +300,38 @@ namespace LocalChess.Data.Entities
             MoveRecord? lastMove = MoveHistory.LastOrDefault();
 
             if (lastMove != null)
+            {
                 lastMove.PromotionPiece = newType;
+                lastMove.Notation = AppendPromotionNotation(lastMove.Notation, newType);
+            }
+
+            BoardChanged?.Invoke();
+        }
+        private static string AppendPromotionNotation(string notation, PieceType pieceType)
+        {
+            if (notation.Contains('='))
+                return notation;
+
+            string suffix = "";
+
+            if (notation.EndsWith("+") || notation.EndsWith("#"))
+            {
+                suffix = notation[^1].ToString();
+                notation = notation[..^1];
+            }
+
+            return $"{notation}={GetPieceNotationLetter(pieceType)}{suffix}";
+        }
+        private static string GetPieceNotationLetter(PieceType pieceType)
+        {
+            return pieceType switch
+            {
+                PieceType.Queen => "Q",
+                PieceType.Rook => "R",
+                PieceType.Bishop => "B",
+                PieceType.Knight => "N",
+                _ => ""
+            };
         }
         private bool IsEnPassantMove(ChessPiece piece, Point from, Point to)
         {

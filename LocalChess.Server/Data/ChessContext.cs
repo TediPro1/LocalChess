@@ -1,22 +1,17 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using LocalChess.Data.Entities;
 using Microsoft.EntityFrameworkCore;
 
-namespace LocalChess.Data.Data
+namespace LocalChess.Server.Data
 {
     public class ChessContext : DbContext
     {
+        public ChessContext(DbContextOptions<ChessContext> options)
+            : base(options)
+        {
+        }
 
         public DbSet<SavedGame> SavedGames { get; set; }
         public DbSet<SavedMove> SavedMoves { get; set; }
-        protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
-        {
-            optionsBuilder.UseSqlServer(@"Server=(localdb)\mssqllocaldb;Database=LocalChessDB;Trusted_Connection=True;");
-        }
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {

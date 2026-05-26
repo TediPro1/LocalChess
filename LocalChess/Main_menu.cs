@@ -1,12 +1,10 @@
 using LocalChess.Controll.Controllers;
 using LocalChess.Controll.Interfaces;
 using LocalChess.Controll.Sessions;
-using LocalChess.Data.Data;
 using LocalChess.Data.DTOs;
 using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
 using LocalChess.View;
-using Microsoft.EntityFrameworkCore;
 using System.ComponentModel;
 
 namespace LocalChess
@@ -25,15 +23,16 @@ namespace LocalChess
         private static string url = "https://unmoralizing-pryingly-olin.ngrok-free.dev";
         private readonly OfflineLobbyManager offlineLobbyManager = new();
         private readonly OnlineLobbyManager onlineLobbyManager = new(url);
+        private readonly RemoteGameHistoryClient gameHistoryClient = new(url);
         private ILobbyManager CurrentLobbyManager => isOnlineCheckBox.Checked ? onlineLobbyManager : offlineLobbyManager;
-        private void RefreshLobbyList()
+        private async void RefreshLobbyList()
         {
             if (IsDisposed)
                 return;
 
             if (InvokeRequired)
             {
-                BeginInvoke(RefreshLobbyList);
+                BeginInvoke(new Action(RefreshLobbyList));
                 return;
             }
 
@@ -45,12 +44,19 @@ namespace LocalChess
             }
 
             flowLayoutPanel1.Controls.Clear();
-            using ChessContext context = new();
-            var savedGames = context.SavedGames
-                .Include(game => game.Moves)
-                .ToList();
 
-            foreach (var game in savedGames)
+            List<SavedGameDTO> savedGames;
+
+            try
+            {
+                savedGames = await gameHistoryClient.GetSavedGamesAsync();
+            }
+            catch
+            {
+                savedGames = new List<SavedGameDTO>();
+            }
+
+            foreach (SavedGameDTO game in savedGames)
             {
                 flowLayoutPanel1.Controls.Add(new ShowChessGame(game));
             }
@@ -131,7 +137,8 @@ namespace LocalChess
                 gameForm = new ChessBoardForm(
                     offlineManager,
                     realLobby,
-                    PieceColor.White
+                    PieceColor.White,
+                    url
                     );
             }
 
@@ -169,7 +176,8 @@ namespace LocalChess
                 gameForm = new ChessBoardForm(
                     offlineManager,
                     realLobby,
-                    PieceColor.Black
+                    PieceColor.Black,
+                    url
                 );
             }
             else
