@@ -17,7 +17,8 @@ namespace LocalChess.Controll.Sessions
         private readonly HubConnection connection;
         private readonly RemoteGameHistoryClient gameHistoryClient;
         private readonly string lobbyId;
-        public string DisplayName => $"Online Lobby {lobbyId} ({PlayerColor})";
+        private readonly string lobbyName;
+        public string DisplayName => $"Game Control - {lobbyName} ({PlayerColor})";
 
         public event Action? BoardChanged;
         public event Action? PlayersReady;
@@ -25,9 +26,10 @@ namespace LocalChess.Controll.Sessions
         private bool hasLeft;
         private bool arePlayersReady;
 
-        public OnlineGameSession(string serverUrl, string lobbyId, PieceColor playerColor, bool arePlayersReady = false)
+        public OnlineGameSession(string serverUrl, string lobbyId, PieceColor playerColor, bool arePlayersReady = false, string? lobbyName = null)
         {
             this.lobbyId = lobbyId;
+            this.lobbyName = string.IsNullOrWhiteSpace(lobbyName) ? lobbyId : lobbyName;
             PlayerColor = playerColor;
             this.arePlayersReady = arePlayersReady;
             gameHistoryClient = new RemoteGameHistoryClient(serverUrl);
@@ -119,7 +121,7 @@ namespace LocalChess.Controll.Sessions
 
             await gameHistoryClient.SaveCompletedGameAsync(
                 Game,
-                lobbyId,
+                lobbyName,
                 true,
                 result,
                 reason

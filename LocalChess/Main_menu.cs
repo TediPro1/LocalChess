@@ -125,7 +125,8 @@ namespace LocalChess
                     url,
                     lobby.Id,
                     assignedColor,
-                    !lobby.IsWaiting
+                    !lobby.IsWaiting,
+                    lobby.Name
                 );
 
                 await session.StartAsync();
@@ -191,7 +192,8 @@ namespace LocalChess
                     url,
                     lobby.Id,
                     assignedColor,
-                    !lobby.IsWaiting
+                    !lobby.IsWaiting,
+                    lobby.Name
                 );
 
                 await session.StartAsync();
