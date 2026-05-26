@@ -16,7 +16,9 @@ namespace LocalChess
         public Main_menu()
         {
             InitializeComponent();
-            CurrentLobbyManager.LobbiesChanged += RefreshLobbyList;
+            offlineLobbyManager.LobbiesChanged += RefreshLobbyList;
+            onlineLobbyManager.LobbiesChanged += RefreshLobbyList;
+            isOnlineCheckBox.CheckedChanged += isOnlineCheckBox_CheckedChanged;
             hidePassButton.BackgroundImage = View.Properties.Resources.show;
             join_pass_hide_button.BackgroundImage = View.Properties.Resources.show;
         }
@@ -26,6 +28,15 @@ namespace LocalChess
         private ILobbyManager CurrentLobbyManager => isOnlineCheckBox.Checked ? onlineLobbyManager : offlineLobbyManager;
         private void RefreshLobbyList()
         {
+            if (IsDisposed)
+                return;
+
+            if (InvokeRequired)
+            {
+                BeginInvoke(RefreshLobbyList);
+                return;
+            }
+
             listBox1.Items.Clear();
 
             foreach (var lobby in CurrentLobbyManager.Lobbies)
@@ -44,10 +55,24 @@ namespace LocalChess
                 flowLayoutPanel1.Controls.Add(new ShowChessGame(game));
             }
         }
-        private void button2_Click(object sender, EventArgs e)
+
+        private async Task RefreshCurrentLobbyListAsync()
+        {
+            if (CurrentLobbyManager is OnlineLobbyManager onlineManager)
+                await onlineManager.StartAsync();
+            else
+                RefreshLobbyList();
+        }
+
+        private async void button2_Click(object sender, EventArgs e)
         {
             menu.SelectedTab = join_game_page;
-            RefreshLobbyList();
+            await RefreshCurrentLobbyListAsync();
+        }
+
+        private async void isOnlineCheckBox_CheckedChanged(object? sender, EventArgs e)
+        {
+            await RefreshCurrentLobbyListAsync();
         }
 
         private void button4_Click(object sender, EventArgs e)
@@ -193,7 +218,8 @@ namespace LocalChess
 
         private void Main_menu_FormClosed(object sender, FormClosedEventArgs e)
         {
-            CurrentLobbyManager.LobbiesChanged -= RefreshLobbyList;
+            offlineLobbyManager.LobbiesChanged -= RefreshLobbyList;
+            onlineLobbyManager.LobbiesChanged -= RefreshLobbyList;
         }
 
         private void button8_Click(object sender, EventArgs e)

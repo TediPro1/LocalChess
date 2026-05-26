@@ -17,8 +17,18 @@ namespace LocalChess.Controll.Controllers
         private readonly HubConnection connection;
         public event Action? LobbiesChanged;
         private readonly List<LobbyDTO> lobbies = new();
+        private readonly object lobbiesLock = new();
 
-        public IReadOnlyList<LobbyDTO> Lobbies => lobbies;
+        public IReadOnlyList<LobbyDTO> Lobbies
+        {
+            get
+            {
+                lock (lobbiesLock)
+                {
+                    return lobbies.ToList();
+                }
+            }
+        }
 
         public OnlineLobbyManager(string serverUrl)
         {
@@ -29,8 +39,7 @@ namespace LocalChess.Controll.Controllers
 
             connection.On<List<LobbyDTO>>("LobbiesUpdated", updatedLobbies =>
             {
-                lobbies.Clear();
-                lobbies.AddRange(updatedLobbies);
+                UpdateLobbies(updatedLobbies);
                 LobbiesChanged?.Invoke();
             });
         }
@@ -47,8 +56,7 @@ namespace LocalChess.Controll.Controllers
         {
             var updatedLobbies = await connection.InvokeAsync<List<LobbyDTO>>("GetLobbies");
 
-            lobbies.Clear();
-            lobbies.AddRange(updatedLobbies);
+            UpdateLobbies(updatedLobbies);
 
             LobbiesChanged?.Invoke();
         }
@@ -100,6 +108,15 @@ namespace LocalChess.Controll.Controllers
         {
             if (connection.State == HubConnectionState.Disconnected)
                 await connection.StartAsync();
+        }
+
+        private void UpdateLobbies(IEnumerable<LobbyDTO> updatedLobbies)
+        {
+            lock (lobbiesLock)
+            {
+                lobbies.Clear();
+                lobbies.AddRange(updatedLobbies);
+            }
         }
     }
 }
