@@ -63,7 +63,7 @@ namespace LocalChess.Data.Entities
             PieceColor opponent = CurrentTurn = CurrentTurn == PieceColor.White
                 ? PieceColor.Black
                 : PieceColor.White;
-
+  
             if (IsCheckmate(opponent))
                 notation += "#";
             else if (IsKingInCheck(opponent))

@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 18
-VisualStudioVersion = 18.6.11819.183 stable
+VisualStudioVersion = 18.6.11819.183
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.View", "LocalChess\LocalChess.View.csproj", "{0C8BA99C-FF04-4EFD-A854-7F8BAAC3DAE9}"
 	ProjectSection(ProjectDependencies) = postProject
@@ -17,6 +17,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Server", "LocalC
 	EndProjectSection
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Controll", "LocalChess.Controll\LocalChess.Controll.csproj", "{F514BBA7-6744-47E1-BA27-45126A35C430}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Test", "LocalChess.Test\LocalChess.Test.csproj", "{8F7830C2-264F-4968-A13A-8CA68562F75F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -40,6 +42,10 @@ Global
 		{F514BBA7-6744-47E1-BA27-45126A35C430}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{F514BBA7-6744-47E1-BA27-45126A35C430}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F514BBA7-6744-47E1-BA27-45126A35C430}.Release|Any CPU.Build.0 = Release|Any CPU
+		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
