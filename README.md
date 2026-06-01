@@ -22,8 +22,8 @@ The project started as a simple local chess board and somehow evolved into a ful
 - ☠️ Checkmate detection
 - 🤝 Stalemate detection
 - 🔄 Draw by repetition
-- 📜 Game history (planned)
-- 💾 Database support (planned)
+- 📜 Game history
+- 💾 Database support
 
 ---
 
