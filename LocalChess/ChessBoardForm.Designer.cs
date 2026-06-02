@@ -163,6 +163,8 @@
             AutoScaleDimensions = new SizeF(8F, 20F);
             AutoScaleMode = AutoScaleMode.Font;
             BackColor = Color.White;
+            BackgroundImage = Properties.Resources.Screenshot_2026_06_02_085351;
+            BackgroundImageLayout = ImageLayout.Center;
             ClientSize = new Size(950, 753);
             Controls.Add(black_material_label);
             Controls.Add(white_material_label);
@@ -175,6 +177,7 @@
             Controls.Add(button1);
             Controls.Add(moveHistoryListBox);
             Controls.Add(boardPanel);
+            DoubleBuffered = true;
             FormBorderStyle = FormBorderStyle.FixedSingle;
             Icon = (Icon)resources.GetObject("$this.Icon");
             MaximizeBox = false;

@@ -26,6 +26,12 @@ builder.Services.AddScoped<GameSaveService>();
 
 var app = builder.Build();
 
+using (IServiceScope scope = app.Services.CreateScope())
+{
+    ChessContext context = scope.ServiceProvider.GetRequiredService<ChessContext>();
+    await context.Database.MigrateAsync();
+}
+
 app.MapHub<ChessHub>("/chesshub");
 
 app.MapGet("/saved-games", async (ChessContext context) =>

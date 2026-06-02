@@ -110,13 +110,20 @@ namespace LocalChess.Controll.Sessions
 
             Game.WasSaved = true;
 
-            await gameHistoryClient.SaveCompletedGameAsync(
-                Game,
-                lobby.Name,
-                false,
-                result,
-                reason
-            );
+            try
+            {
+                await gameHistoryClient.SaveCompletedGameAsync(
+                    Game,
+                    lobby.Name,
+                    false,
+                    result,
+                    reason
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Could not save offline game history: {ex.Message}");
+            }
         }
     }
 }

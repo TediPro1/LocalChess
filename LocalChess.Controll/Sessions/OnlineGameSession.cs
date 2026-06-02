@@ -122,14 +122,21 @@ namespace LocalChess.Controll.Sessions
 
             Game.WasSaved = true;
 
-            await gameHistoryClient.SaveCompletedGameAsync(
-                Game,
-                lobbyName,
-                true,
-                result,
-                reason,
-                $"online-lobby:{lobbyId}"
-            );
+            try
+            {
+                await gameHistoryClient.SaveCompletedGameAsync(
+                    Game,
+                    lobbyName,
+                    true,
+                    result,
+                    reason,
+                    $"online-lobby:{lobbyId}"
+                );
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Could not save online game history: {ex.Message}");
+            }
         }
 
         public async Task EndGameAsync(string message, GameResult result, GameEndReason reason)

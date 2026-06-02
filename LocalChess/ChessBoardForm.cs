@@ -59,6 +59,7 @@ namespace LocalChess.View
 
                 ClearSelection();
                 RefreshLivePositionHistory(true);
+                StartClockAfterFirstMove();
 
                 if (IsDisposed)
                     return;
@@ -90,8 +91,6 @@ namespace LocalChess.View
             CreateBoard();
             RefreshLivePositionHistory(false);
             RenderGame();
-            if (session.ArePlayersReady)
-                StartChessClock();
         }
         private readonly ChessGame previewGame = new();
         private readonly ChessGame positionPreviewGame = new();
@@ -101,6 +100,11 @@ namespace LocalChess.View
         public Panel[,] Squares = new Panel[8, 8];
         private Point? selectedSquare = null;
         private List<Point> highlightedMoves = new();
+        private Point? dragSourceSquare = null;
+        private Point dragStartMousePosition;
+        private bool suppressNextPieceClick;
+        private PictureBox? floatingDragPiece;
+        private Size floatingDragPieceSize;
         private readonly List<string> loadedPositions = new();
         private readonly List<MoveRecord> importedMoves = new();
         private int loadedPositionIndex = -1;
@@ -161,6 +165,9 @@ namespace LocalChess.View
                         : Color.SaddleBrown;
 
                     square.Click += Square_Click;
+                    square.AllowDrop = true;
+                    square.DragEnter += BoardSquare_DragEnter;
+                    square.DragDrop += BoardSquare_DragDrop;
 
                     int displayRow = ShouldMirrorBoard() ? 7 - row : row;
                     int displayCol = ShouldMirrorBoard() ? 7 - col : col;
@@ -402,6 +409,14 @@ namespace LocalChess.View
             UpdateRunningClock();
         }
 
+        private void StartClockAfterFirstMove()
+        {
+            if (session == null || !session.ArePlayersReady || game.MoveHistory.Count == 0)
+                return;
+
+            StartChessClock();
+        }
+
         private void OnPlayersReady()
         {
             if (IsDisposed)
@@ -412,13 +427,11 @@ namespace LocalChess.View
                 BeginInvoke(new Action(() =>
                 {
                     RenderTurnAndClock();
-                    StartChessClock();
                 }));
                 return;
             }
 
             RenderTurnAndClock();
-            StartChessClock();
         }
 
         private void StopChessClock()
@@ -749,13 +762,7 @@ namespace LocalChess.View
 
         private async void Square_Click(object sender, EventArgs e)
         {
-            if (session == null)
-                return;
-
-            if (!session.ArePlayersReady)
-                return;
-
-            if (isViewingHistoricalPosition)
+            if (!CanMovePieces())
                 return;
 
             Panel clicked = (Panel)sender;
@@ -787,12 +794,39 @@ namespace LocalChess.View
 
             Point from = selectedSquare.Value;
             Point to = position;
+            await SubmitMoveAsync(from, to);
+        }
+
+        private bool CanMovePieces()
+        {
+            return session != null
+                && session.ArePlayersReady
+                && !isViewingHistoricalPosition
+                && game.CurrentTurn == playerColor;
+        }
+
+        private bool CanStartMoveFrom(Point position)
+        {
+            if (!CanMovePieces())
+                return false;
+
+            ChessPiece? piece = game.Board.GetPiece(position.X, position.Y);
+
+            return piece != null && piece.Color == playerColor;
+        }
+
+        private async Task SubmitMoveAsync(Point from, Point to)
+        {
+            if (session == null)
+                return;
+
             PieceType? promotion = ChoosePromotionForMove(from, to);
 
             ClearSelection();
 
             if (await session.TryMoveAsync(from, to, promotion))
             {
+                StartChessClock();
                 await HandleAfterMoveAsync();
             }
             else
@@ -800,6 +834,7 @@ namespace LocalChess.View
                 RenderBoard();
             }
         }
+
         private PieceType? ChoosePromotionForMove(Point from, Point to)
         {
             ChessPiece? movingPiece = game.Board.GetPiece(from.X, from.Y);
@@ -943,10 +978,16 @@ namespace LocalChess.View
                     SizeMode = PictureBoxSizeMode.Zoom,
                     BackColor = Color.Transparent,
                     Tag = square.Tag,
-                    Cursor = Cursors.Hand
+                    Cursor = Cursors.Hand,
+                    AllowDrop = true
                 };
 
                 pieceBox.Click += Piece_Click;
+                pieceBox.MouseDown += Piece_MouseDown;
+                pieceBox.MouseMove += Piece_MouseMove;
+                pieceBox.GiveFeedback += Piece_GiveFeedback;
+                pieceBox.DragEnter += BoardSquare_DragEnter;
+                pieceBox.DragDrop += BoardSquare_DragDrop;
                 square.Controls.Add(pieceBox);
             }
 
@@ -954,15 +995,157 @@ namespace LocalChess.View
             {
                 pieceBox.Image = image;
             }
+
+            pieceBox.Visible = true;
         }
         private void Piece_Click(object sender, EventArgs e)
         {
+            if (suppressNextPieceClick)
+            {
+                suppressNextPieceClick = false;
+                return;
+            }
+
             PictureBox piece = (PictureBox)sender;
 
             Square_Click(
                 Squares[((Point)piece.Tag).X, ((Point)piece.Tag).Y],
                 e
             );
+        }
+
+        private void Piece_MouseDown(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || sender is not PictureBox piece)
+                return;
+
+            Point position = (Point)piece.Tag;
+
+            if (!CanStartMoveFrom(position))
+            {
+                dragSourceSquare = null;
+                return;
+            }
+
+            dragSourceSquare = position;
+            dragStartMousePosition = e.Location;
+        }
+
+        private void Piece_MouseMove(object? sender, MouseEventArgs e)
+        {
+            if (e.Button != MouseButtons.Left || dragSourceSquare == null || sender is not PictureBox piece)
+                return;
+
+            if (Math.Abs(e.X - dragStartMousePosition.X) < SystemInformation.DragSize.Width / 2
+                && Math.Abs(e.Y - dragStartMousePosition.Y) < SystemInformation.DragSize.Height / 2)
+            {
+                return;
+            }
+
+            Point from = dragSourceSquare.Value;
+            suppressNextPieceClick = true;
+            selectedSquare = from;
+            highlightedMoves = game.GetLegalMoves(from);
+            RenderBoard();
+
+            PictureBox? renderedPiece = Squares[from.X, from.Y].Controls
+                .OfType<PictureBox>()
+                .FirstOrDefault();
+
+            BeginFloatingPieceDrag(renderedPiece ?? piece);
+
+            try
+            {
+                piece.DoDragDrop(from, DragDropEffects.Move);
+            }
+            finally
+            {
+                EndFloatingPieceDrag();
+                dragSourceSquare = null;
+            }
+        }
+
+        private void BeginFloatingPieceDrag(PictureBox piece)
+        {
+            if (piece.Image == null)
+                return;
+
+            floatingDragPieceSize = piece.Size;
+            piece.Visible = false;
+
+            floatingDragPiece = new PictureBox
+            {
+                Image = piece.Image,
+                Size = floatingDragPieceSize,
+                SizeMode = PictureBoxSizeMode.Zoom,
+                BackColor = Color.Transparent,
+                Enabled = false
+            };
+
+            Controls.Add(floatingDragPiece);
+            floatingDragPiece.BringToFront();
+            UpdateFloatingDragPieceLocation();
+        }
+
+        private void EndFloatingPieceDrag()
+        {
+            if (floatingDragPiece != null)
+            {
+                Controls.Remove(floatingDragPiece);
+                floatingDragPiece.Dispose();
+                floatingDragPiece = null;
+            }
+
+            RenderBoard();
+        }
+
+        private void Piece_GiveFeedback(object? sender, GiveFeedbackEventArgs e)
+        {
+            e.UseDefaultCursors = true;
+            UpdateFloatingDragPieceLocation();
+        }
+
+        private void UpdateFloatingDragPieceLocation()
+        {
+            if (floatingDragPiece == null)
+                return;
+
+            Point cursorOnForm = PointToClient(Cursor.Position);
+
+            floatingDragPiece.Location = new Point(
+                cursorOnForm.X - floatingDragPieceSize.Width / 2,
+                cursorOnForm.Y - floatingDragPieceSize.Height / 2
+            );
+        }
+
+        private void BoardSquare_DragEnter(object? sender, DragEventArgs e)
+        {
+            e.Effect = e.Data?.GetDataPresent(typeof(Point)) == true
+                ? DragDropEffects.Move
+                : DragDropEffects.None;
+        }
+
+        private async void BoardSquare_DragDrop(object? sender, DragEventArgs e)
+        {
+            if (e.Data?.GetData(typeof(Point)) is not Point from)
+                return;
+
+            Point? to = GetSquarePositionFromDragTarget(sender);
+
+            if (to == null)
+                return;
+
+            await SubmitMoveAsync(from, to.Value);
+        }
+
+        private static Point? GetSquarePositionFromDragTarget(object? sender)
+        {
+            return sender switch
+            {
+                Panel panel when panel.Tag is Point point => point,
+                PictureBox pictureBox when pictureBox.Tag is Point point => point,
+                _ => null
+            };
         }
         public static Image GetPieceImage(ChessPiece piece)
         {
