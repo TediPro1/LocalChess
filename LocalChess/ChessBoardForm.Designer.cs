@@ -47,6 +47,7 @@
             // 
             // boardPanel
             // 
+            boardPanel.BackColor = Color.Transparent;
             boardPanel.ColumnCount = 1;
             boardPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));
             boardPanel.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 50F));

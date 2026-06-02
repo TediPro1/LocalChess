@@ -30,6 +30,7 @@ using (IServiceScope scope = app.Services.CreateScope())
 {
     ChessContext context = scope.ServiceProvider.GetRequiredService<ChessContext>();
     await context.Database.MigrateAsync();
+    await EnsureSaveKeyColumnAsync(context);
 }
 
 app.MapHub<ChessHub>("/chesshub");
@@ -53,3 +54,28 @@ app.MapPost("/saved-games", async (CompletedGameDTO completedGame, GameSaveServi
 });
 
 app.Run();
+
+static async Task EnsureSaveKeyColumnAsync(ChessContext context)
+{
+    await context.Database.ExecuteSqlRawAsync("""
+        IF OBJECT_ID(N'dbo.SavedGames', N'U') IS NOT NULL
+           AND COL_LENGTH(N'dbo.SavedGames', N'SaveKey') IS NULL
+        BEGIN
+            ALTER TABLE dbo.SavedGames ADD SaveKey nvarchar(100) NULL;
+        END
+
+        IF OBJECT_ID(N'dbo.SavedGames', N'U') IS NOT NULL
+           AND COL_LENGTH(N'dbo.SavedGames', N'SaveKey') IS NOT NULL
+           AND NOT EXISTS (
+               SELECT 1
+               FROM sys.indexes
+               WHERE name = N'IX_SavedGames_SaveKey'
+                 AND object_id = OBJECT_ID(N'dbo.SavedGames')
+           )
+        BEGIN
+            CREATE UNIQUE INDEX IX_SavedGames_SaveKey
+            ON dbo.SavedGames(SaveKey)
+            WHERE SaveKey IS NOT NULL;
+        END
+        """);
+}

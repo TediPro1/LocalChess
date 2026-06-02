@@ -103,8 +103,9 @@ namespace LocalChess.View
         private Point? dragSourceSquare = null;
         private Point dragStartMousePosition;
         private bool suppressNextPieceClick;
-        private PictureBox? floatingDragPiece;
+        private DragPieceOverlay? floatingDragPiece;
         private Size floatingDragPieceSize;
+        private Point lastFloatingDragPieceLocation;
         private readonly List<string> loadedPositions = new();
         private readonly List<MoveRecord> importedMoves = new();
         private int loadedPositionIndex = -1;
@@ -138,6 +139,7 @@ namespace LocalChess.View
         {
             Text = session?.DisplayName ?? "Game Preview";
             ApplyPlayerOrientation();
+            boardPanel.BackColor = Color.Transparent;
             boardPanel.Controls.Clear();
 
             boardPanel.RowCount = 8;
@@ -160,9 +162,7 @@ namespace LocalChess.View
                     square.Margin = Padding.Empty;
                     square.Tag = new Point(row, col);
 
-                    square.BackColor = (row + col) % 2 == 0
-                        ? Color.Beige
-                        : Color.SaddleBrown;
+                    square.BackColor = Color.Transparent;
 
                     square.Click += Square_Click;
                     square.AllowDrop = true;
@@ -918,9 +918,7 @@ namespace LocalChess.View
                     var sq = Squares[row, col];
                     if (sq == null)
                         continue;
-                    sq.BackColor = (row + col) % 2 == 0
-                        ? Color.Beige
-                        : Color.SaddleBrown;
+                    sq.BackColor = Color.Transparent;
                 }
             }
         }
@@ -1073,17 +1071,8 @@ namespace LocalChess.View
             floatingDragPieceSize = piece.Size;
             piece.Visible = false;
 
-            floatingDragPiece = new PictureBox
-            {
-                Image = piece.Image,
-                Size = floatingDragPieceSize,
-                SizeMode = PictureBoxSizeMode.Zoom,
-                BackColor = Color.Transparent,
-                Enabled = false
-            };
-
-            Controls.Add(floatingDragPiece);
-            floatingDragPiece.BringToFront();
+            floatingDragPiece = new DragPieceOverlay(piece.Image, floatingDragPieceSize);
+            floatingDragPiece.Show(this);
             UpdateFloatingDragPieceLocation();
         }
 
@@ -1091,7 +1080,6 @@ namespace LocalChess.View
         {
             if (floatingDragPiece != null)
             {
-                Controls.Remove(floatingDragPiece);
                 floatingDragPiece.Dispose();
                 floatingDragPiece = null;
             }
@@ -1112,10 +1100,17 @@ namespace LocalChess.View
 
             Point cursorOnForm = PointToClient(Cursor.Position);
 
-            floatingDragPiece.Location = new Point(
-                cursorOnForm.X - floatingDragPieceSize.Width / 2,
-                cursorOnForm.Y - floatingDragPieceSize.Height / 2
+            Point cursorOnScreen = PointToScreen(cursorOnForm);
+            Point newLocation = new(
+                cursorOnScreen.X - floatingDragPieceSize.Width / 2,
+                cursorOnScreen.Y - floatingDragPieceSize.Height / 2
             );
+
+            if (newLocation == lastFloatingDragPieceLocation)
+                return;
+
+            lastFloatingDragPieceLocation = newLocation;
+            floatingDragPiece.Location = newLocation;
         }
 
         private void BoardSquare_DragEnter(object? sender, DragEventArgs e)
@@ -1146,6 +1141,46 @@ namespace LocalChess.View
                 PictureBox pictureBox when pictureBox.Tag is Point point => point,
                 _ => null
             };
+        }
+
+        private sealed class DragPieceOverlay : Form
+        {
+            private readonly Image image;
+
+            public DragPieceOverlay(Image image, Size size)
+            {
+                this.image = image;
+                AutoScaleMode = AutoScaleMode.None;
+                BackColor = Color.Magenta;
+                ClientSize = size;
+                DoubleBuffered = true;
+                FormBorderStyle = FormBorderStyle.None;
+                ShowInTaskbar = false;
+                StartPosition = FormStartPosition.Manual;
+                TopMost = true;
+                TransparencyKey = Color.Magenta;
+            }
+
+            protected override bool ShowWithoutActivation => true;
+
+            protected override CreateParams CreateParams
+            {
+                get
+                {
+                    const int WS_EX_NOACTIVATE = 0x08000000;
+                    const int WS_EX_TOOLWINDOW = 0x00000080;
+                    const int WS_EX_TRANSPARENT = 0x00000020;
+
+                    CreateParams createParams = base.CreateParams;
+                    createParams.ExStyle |= WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW | WS_EX_TRANSPARENT;
+                    return createParams;
+                }
+            }
+
+            protected override void OnPaint(PaintEventArgs e)
+            {
+                e.Graphics.DrawImage(image, ClientRectangle);
+            }
         }
         public static Image GetPieceImage(ChessPiece piece)
         {
