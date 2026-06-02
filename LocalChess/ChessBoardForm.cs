@@ -752,6 +752,9 @@ namespace LocalChess.View
             if (session == null)
                 return;
 
+            if (!session.ArePlayersReady)
+                return;
+
             if (isViewingHistoricalPosition)
                 return;
 

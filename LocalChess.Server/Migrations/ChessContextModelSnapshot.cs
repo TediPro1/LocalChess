@@ -51,10 +51,18 @@ namespace LocalChess.Server.Migrations
                     b.Property<int>("Result")
                         .HasColumnType("int");
 
+                    b.Property<string>("SaveKey")
+                        .HasMaxLength(100)
+                        .HasColumnType("nvarchar(100)");
+
                     b.Property<DateTime>("StartedAt")
                         .HasColumnType("datetime2");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("SaveKey")
+                        .IsUnique()
+                        .HasFilter("[SaveKey] IS NOT NULL");
 
                     b.ToTable("SavedGames");
                 });

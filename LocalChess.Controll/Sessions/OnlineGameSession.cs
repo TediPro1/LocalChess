@@ -58,8 +58,8 @@ namespace LocalChess.Controll.Sessions
 
             connection.On<GameEndedDTO>("GameEnded", async dto =>
             {
+                await SaveCompletedGameOnceAsync(dto.Result, dto.EndReason);
                 GameEnded?.Invoke(dto.Message);
-                await Task.CompletedTask;
             });
 
             SubscribeGameSaving();
@@ -77,11 +77,14 @@ namespace LocalChess.Controll.Sessions
         public async Task StartAsync()
         {
             await connection.StartAsync();
-            await connection.InvokeAsync("JoinGameGroup", lobbyId);
+            await connection.InvokeAsync("JoinGameGroup", lobbyId, PlayerColor);
         }
 
         public async Task<bool> TryMoveAsync(Point from, Point to, PieceType? promotion = null)
         {
+            if (!arePlayersReady)
+                return false;
+
             bool success = Game.TryMove(from, to);
 
             if (!success)
@@ -124,7 +127,8 @@ namespace LocalChess.Controll.Sessions
                 lobbyName,
                 true,
                 result,
-                reason
+                reason,
+                $"online-lobby:{lobbyId}"
             );
         }
 

@@ -11,6 +11,8 @@ namespace LocalChess.Data.Entities
     {
         public int Id { get; set; }
 
+        public string? SaveKey { get; set; }
+
         public string LobbyName { get; set; } = "Local Game";
 
         public DateTime StartedAt { get; set; } = DateTime.Now;

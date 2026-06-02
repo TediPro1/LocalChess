@@ -49,6 +49,9 @@ namespace LocalChess.Controll.Sessions
 
         public Task<bool> TryMoveAsync(Point from, Point to, PieceType? promotion = null)
         {
+            if (!ArePlayersReady)
+                return Task.FromResult(false);
+
             bool success = Game.TryMove(from, to);
 
             if (success && promotion != null)
@@ -64,8 +67,21 @@ namespace LocalChess.Controll.Sessions
 
             hasLeft = true;
 
+            bool shouldAbandonGame = ArePlayersReady && !Game.WasSaved;
+
             lobby.GameEnded -= OnLobbyGameEnded;
             lobby.PlayersReady -= OnLobbyPlayersReady;
+
+            if (shouldAbandonGame)
+            {
+                GameResult result = PlayerColor == PieceColor.White
+                    ? GameResult.BlackWon
+                    : GameResult.WhiteWon;
+
+                await SaveCompletedGameOnceAsync(result, GameEndReason.Abandoned);
+                lobby.EndGame($"{PlayerColor} left the game. Game abandoned.");
+            }
+
             await lobbyManager.LeaveLobbyAsync(lobby.Id, PlayerColor);
         }
         private void OnLobbyGameEnded(string message)

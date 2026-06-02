@@ -12,8 +12,8 @@ using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 namespace LocalChess.Server.Migrations
 {
     [DbContext(typeof(ChessContext))]
-    [Migration("20260527101827_DBUpdate")]
-    partial class DBUpdate
+    [Migration("20260601071717_InitialMigration")]
+    partial class InitialMigration
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

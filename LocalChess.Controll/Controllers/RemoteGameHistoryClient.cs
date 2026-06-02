@@ -28,10 +28,12 @@ namespace LocalChess.Controll.Controllers
             string lobbyName,
             bool isOnline,
             GameResult result,
-            GameEndReason reason)
+            GameEndReason reason,
+            string? saveKey = null)
         {
             var dto = new CompletedGameDTO
             {
+                SaveKey = saveKey,
                 LobbyName = lobbyName,
                 StartedAt = game.StartedAt,
                 Result = result,

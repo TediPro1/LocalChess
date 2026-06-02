@@ -6,12 +6,16 @@ using LocalChess.Server.Data;
 using LocalChess.Server.Hubs;
 using LocalChess.Server.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Diagnostics;
 
 var builder = WebApplication.CreateBuilder(args);
+ 
+builder.Configuration.AddJsonFile("appsettings.json", optional: true, reloadOnChange: true);
 
 builder.Services.AddDbContext<ChessContext>(options =>
-    options.UseSqlServer(builder.Configuration.GetConnectionString("ChessDatabase")));
+   options.UseSqlServer(builder.Configuration.GetConnectionString("ChessDatabase")));
 
+Console.WriteLine(builder.Configuration.GetConnectionString("ChessDatabase"));
 builder.Services.AddSignalR(options =>
 {
     options.EnableDetailedErrors = true;

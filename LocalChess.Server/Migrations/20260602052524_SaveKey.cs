@@ -5,7 +5,7 @@
 namespace LocalChess.Server.Migrations
 {
     /// <inheritdoc />
-    public partial class DBUpdate : Migration
+    public partial class SaveKey : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

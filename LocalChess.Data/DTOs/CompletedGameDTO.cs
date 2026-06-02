@@ -4,6 +4,7 @@ namespace LocalChess.Data.DTOs
 {
     public class CompletedGameDTO
     {
+        public string? SaveKey { get; set; }
         public string LobbyName { get; set; } = "Local Game";
         public DateTime StartedAt { get; set; } = DateTime.Now;
         public GameResult Result { get; set; }

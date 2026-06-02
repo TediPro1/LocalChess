@@ -4,12 +4,14 @@ using LocalChess.Data.DTOs;
 using LocalChess.Data.Entities;
 using LocalChess.Data.Enums;
 using Microsoft.AspNetCore.SignalR;
+using System.Collections.Concurrent;
 using System.Text.RegularExpressions;
 
 namespace LocalChess.Server.Hubs
 {
     public class ChessHub : Hub
     {
+        private static readonly ConcurrentDictionary<string, (string LobbyId, PieceColor Color)> connectionPlayers = new();
         private readonly ILobbyManager lobbyManager;
 
         public ChessHub(ILobbyManager lobbyManager)
@@ -45,17 +47,18 @@ namespace LocalChess.Server.Hubs
 
         public async Task LeaveLobby(string lobbyId, PieceColor color)
         {
-            await lobbyManager.LeaveLobbyAsync(lobbyId, color);
-
-            await Clients.All.SendAsync("LobbiesUpdated", lobbyManager.Lobbies.ToList());
+            connectionPlayers.TryRemove(Context.ConnectionId, out _);
+            await LeaveLobbyCoreAsync(lobbyId, color);
         }
 
-        public async Task JoinGameGroup(string lobbyId)
+        public async Task JoinGameGroup(string lobbyId, PieceColor color)
         {
+            connectionPlayers[Context.ConnectionId] = (lobbyId, color);
             await Groups.AddToGroupAsync(Context.ConnectionId, lobbyId);
         }
         public async Task LeaveGameGroup(string lobbyId)
         {
+            connectionPlayers.TryRemove(Context.ConnectionId, out _);
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, lobbyId);
         }
 
@@ -71,6 +74,39 @@ namespace LocalChess.Server.Hubs
 
             await lobbyManager.LeaveLobbyAsync(dto.LobbyId, PieceColor.White);
             await lobbyManager.LeaveLobbyAsync(dto.LobbyId, PieceColor.Black);
+
+            await Clients.All.SendAsync("LobbiesUpdated", lobbyManager.Lobbies.ToList());
+        }
+
+        public override async Task OnDisconnectedAsync(Exception? exception)
+        {
+            if (connectionPlayers.TryRemove(Context.ConnectionId, out var player))
+                await LeaveLobbyCoreAsync(player.LobbyId, player.Color);
+
+            await base.OnDisconnectedAsync(exception);
+        }
+
+        private async Task LeaveLobbyCoreAsync(string lobbyId, PieceColor color)
+        {
+            bool wasInProgress = lobbyManager.Lobbies
+                .Any(lobby => lobby.Id == lobbyId && !lobby.IsWaiting);
+
+            await lobbyManager.LeaveLobbyAsync(lobbyId, color);
+
+            if (wasInProgress)
+            {
+                GameResult result = color == PieceColor.White
+                    ? GameResult.BlackWon
+                    : GameResult.WhiteWon;
+
+                await Clients.Group(lobbyId).SendAsync("GameEnded", new GameEndedDTO
+                {
+                    LobbyId = lobbyId,
+                    Result = result,
+                    EndReason = GameEndReason.Abandoned,
+                    Message = $"{color} left the game. Game abandoned."
+                });
+            }
 
             await Clients.All.SendAsync("LobbiesUpdated", lobbyManager.Lobbies.ToList());
         }

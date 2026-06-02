@@ -1,6 +1,7 @@
 using LocalChess.Data.DTOs;
 using LocalChess.Data.Entities;
 using LocalChess.Server.Data;
+using Microsoft.EntityFrameworkCore;
 
 namespace LocalChess.Server.Services
 {
@@ -15,8 +16,14 @@ namespace LocalChess.Server.Services
 
         public async Task<SavedGameDTO> SaveGameAsync(CompletedGameDTO completedGame)
         {
+            SavedGame? existingGame = await FindExistingGameAsync(completedGame.SaveKey);
+
+            if (existingGame != null)
+                return ToDto(existingGame);
+
             var savedGame = new SavedGame
             {
+                SaveKey = completedGame.SaveKey,
                 LobbyName = completedGame.LobbyName,
                 StartedAt = completedGame.StartedAt,
                 FinishedAt = DateTime.Now,
@@ -41,9 +48,34 @@ namespace LocalChess.Server.Services
             }
 
             context.SavedGames.Add(savedGame);
-            await context.SaveChangesAsync();
+
+            try
+            {
+                await context.SaveChangesAsync();
+            }
+            catch (DbUpdateException) when (!string.IsNullOrWhiteSpace(completedGame.SaveKey))
+            {
+                context.ChangeTracker.Clear();
+
+                existingGame = await FindExistingGameAsync(completedGame.SaveKey);
+
+                if (existingGame != null)
+                    return ToDto(existingGame);
+
+                throw;
+            }
 
             return ToDto(savedGame);
+        }
+
+        private async Task<SavedGame?> FindExistingGameAsync(string? saveKey)
+        {
+            if (string.IsNullOrWhiteSpace(saveKey))
+                return null;
+
+            return await context.SavedGames
+                .Include(game => game.Moves)
+                .FirstOrDefaultAsync(game => game.SaveKey == saveKey);
         }
 
         public static SavedGameDTO ToDto(SavedGame game)
