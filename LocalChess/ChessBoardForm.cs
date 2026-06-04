@@ -111,6 +111,8 @@ namespace LocalChess.View
         private int loadedPositionIndex = -1;
         private bool isViewingHistoricalPosition;
         private static readonly TimeSpan startingClockTime = TimeSpan.FromMinutes(10);
+        private static readonly Color QuietLegalMoveColor = Color.LightGreen;
+        private static readonly Color CaptureLegalMoveColor = Color.IndianRed;
         private TimeSpan whiteRemaining = startingClockTime;
         private TimeSpan blackRemaining = startingClockTime;
         private bool chessClockStarted;
@@ -162,7 +164,8 @@ namespace LocalChess.View
                     square.Margin = Padding.Empty;
                     square.Tag = new Point(row, col);
 
-                    square.BackColor = Color.Transparent;
+                    square.BackColor = GetSquareBaseColor(row, col);
+                    square.BorderStyle = BorderStyle.None;
 
                     square.Click += Square_Click;
                     square.AllowDrop = true;
@@ -918,10 +921,20 @@ namespace LocalChess.View
                     var sq = Squares[row, col];
                     if (sq == null)
                         continue;
-                    sq.BackColor = Color.Transparent;
+
+                    sq.BackColor = GetSquareBaseColor(row, col);
+                    sq.BorderStyle = BorderStyle.None;
                 }
             }
         }
+
+        private static Color GetSquareBaseColor(int row, int col)
+        {
+            return (row + col) % 2 == 0
+                ? Color.Beige
+                : Color.SaddleBrown;
+        }
+
         private void HighlightSelectedSquare(Point position)
         {
             Squares[position.X, position.Y].BackColor = Color.Yellow;
@@ -948,9 +961,12 @@ namespace LocalChess.View
             {
                 ChessPiece? target = game.Board.GetPiece(move.X, move.Y);
 
-                Squares[move.X, move.Y].BackColor = target == null
-                    ? Color.LightGreen
-                    : Color.IndianRed;
+                Panel square = Squares[move.X, move.Y];
+
+                square.BackColor = target == null
+                    ? QuietLegalMoveColor
+                    : CaptureLegalMoveColor;
+                square.BorderStyle = BorderStyle.FixedSingle;
             }
         }
         public void SetPiece(int row, int col, Image image)
