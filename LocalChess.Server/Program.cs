@@ -1,4 +1,3 @@
-using LocalChess.Controll.Controllers;
 using LocalChess.Controll.Interfaces;
 using LocalChess.Data.DTOs;
 using LocalChess.Data.Enums;
@@ -21,7 +20,7 @@ builder.Services.AddSignalR(options =>
     options.EnableDetailedErrors = true;
 });
 
-builder.Services.AddSingleton<ILobbyManager, OfflineLobbyManager>();
+builder.Services.AddSingleton<ILobbyManager, ServerLobbyManager>();
 builder.Services.AddScoped<GameSaveService>();
 
 var app = builder.Build();

@@ -101,12 +101,60 @@ namespace LocalChess.Test.Services
             List<Point> legalMoves = Game.GetLegalMoves(Game.FindKing(PieceColor.White));
             List<Point> expectedResult = new List<Point>()
             {
-                new Point(4,6), // e2
-                new Point(5,6), // f2
-                new Point(5,7), // f1
-                new Point(6,7)  // kingside castle
+                new Point(6,3), // d2
+                new Point(6,4), // e2
+                new Point(6,5), // f2
+                new Point(7,5), // f1
+                new Point(7,6)  // g1 castle
             };
             CollectionAssert.AreEquivalent(expectedResult, legalMoves);
         }
+        [Test]
+        public async Task TestLaoneKingCentre()
+        {
+            Game.LoadFromFen("8/8/8/3K4/8/8/8/8 w - - 0 1");
+            List<Point> legalMoves = Game.GetLegalMoves(Game.FindKing(PieceColor.White));
+            List<Point> expectedresult = new List<Point>()
+            {
+                new Point(2,2),
+                new Point(3,2),
+                new Point(4,2),
+
+                new Point(2,3),
+                new Point(4,3),
+
+                new Point(2,4),
+                new Point(3,4),
+                new Point(4,4)
+            };
+            CollectionAssert.AreEquivalent(expectedresult, legalMoves);
+        }
+        [Test]
+        public async Task TestCornerKing()
+        {
+            Game.LoadFromFen("8/8/8/8/8/8/8/K7 w - - 0 1");
+            List<Point> legalMoves = Game.GetLegalMoves(Game.FindKing(PieceColor.White));
+            List<Point> expectedresult = new List<Point>()
+            {
+                new Point(6, 0),
+                new Point(6, 1),
+                new Point(7, 1)
+            };
+            CollectionAssert.AreEquivalent(expectedresult, legalMoves);
+        }
+        [Test]
+        public async Task TestEnPassant()
+        {
+            Game.LoadFromFen("rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
+            Game.TryMove(new Point(1, 3), new Point(3, 3)); // d7 to d5
+            Game.TryMove(new Point(4, 4), new Point(3, 4)); // e4 to e5
+            List<Point> legalMoves = Game.GetLegalMoves(new Point(3, 4)); // e5 pawn
+            List<Point> expectedResult = new List<Point>()
+            {
+                new Point(2, 3), // d6 en passant
+            };
+            CollectionAssert.AreEquivalent(expectedResult, legalMoves);
+        }
+
     }
 }
