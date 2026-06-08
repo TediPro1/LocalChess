@@ -1,13 +1,8 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 18
-VisualStudioVersion = 18.6.11819.183
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113 d17.12
 MinimumVisualStudioVersion = 10.0.40219.1
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.View", "LocalChess\LocalChess.View.csproj", "{0C8BA99C-FF04-4EFD-A854-7F8BAAC3DAE9}"
-	ProjectSection(ProjectDependencies) = postProject
-		{F514BBA7-6744-47E1-BA27-45126A35C430} = {F514BBA7-6744-47E1-BA27-45126A35C430}
-	EndProjectSection
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Data", "LocalChess.Data\LocalChess.Data.csproj", "{4B63BDEC-44BD-46FD-AA47-653E07ED93BC}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Server", "LocalChess.Server\LocalChess.Server.csproj", "{5FFCB335-59C6-45E8-968C-B02ACF01DF36}"
@@ -20,16 +15,14 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Controll", "Loca
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.Test", "LocalChess.Test\LocalChess.Test.csproj", "{8F7830C2-264F-4968-A13A-8CA68562F75F}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "LocalChess.View", "LocalChess.View\LocalChess.View.csproj", "{948493DC-9610-4E97-A668-F811E4B45DF4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
-		{0C8BA99C-FF04-4EFD-A854-7F8BAAC3DAE9}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{0C8BA99C-FF04-4EFD-A854-7F8BAAC3DAE9}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{0C8BA99C-FF04-4EFD-A854-7F8BAAC3DAE9}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{0C8BA99C-FF04-4EFD-A854-7F8BAAC3DAE9}.Release|Any CPU.Build.0 = Release|Any CPU
 		{4B63BDEC-44BD-46FD-AA47-653E07ED93BC}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{4B63BDEC-44BD-46FD-AA47-653E07ED93BC}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{4B63BDEC-44BD-46FD-AA47-653E07ED93BC}.Release|Any CPU.ActiveCfg = Release|Any CPU
@@ -46,6 +39,10 @@ Global
 		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{8F7830C2-264F-4968-A13A-8CA68562F75F}.Release|Any CPU.Build.0 = Release|Any CPU
+		{948493DC-9610-4E97-A668-F811E4B45DF4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{948493DC-9610-4E97-A668-F811E4B45DF4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{948493DC-9610-4E97-A668-F811E4B45DF4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{948493DC-9610-4E97-A668-F811E4B45DF4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

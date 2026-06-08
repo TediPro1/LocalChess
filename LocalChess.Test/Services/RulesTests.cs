@@ -145,15 +145,31 @@ namespace LocalChess.Test.Services
         [Test]
         public async Task TestEnPassant()
         {
-            Game.LoadFromFen("rnbqkbnr/pppp1ppp/4p3/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1");
-            Game.TryMove(new Point(1, 3), new Point(3, 3)); // d7 to d5
-            Game.TryMove(new Point(4, 4), new Point(3, 4)); // e4 to e5
+            Assert.IsTrue(Game.TryMove(new Point(6, 4), new Point(4, 4))); // e2 to e4
+            Assert.IsTrue(Game.TryMove(new Point(1, 0), new Point(2, 0))); // a7 to a6
+            Assert.IsTrue(Game.TryMove(new Point(4, 4), new Point(3, 4))); // e4 to e5
+            Assert.IsTrue(Game.TryMove(new Point(1, 3), new Point(3, 3))); // d7 to d5
+
             List<Point> legalMoves = Game.GetLegalMoves(new Point(3, 4)); // e5 pawn
             List<Point> expectedResult = new List<Point>()
             {
                 new Point(2, 3), // d6 en passant
+                new Point(2, 4), // e6
             };
+
             CollectionAssert.AreEquivalent(expectedResult, legalMoves);
+            Assert.IsTrue(Game.TryMove(new Point(3, 4), new Point(2, 3)));
+            Assert.IsNull(Game.Board.GetPiece(3, 3)); // captured d5 pawn
+        }
+
+        [Test]
+        public void EnPassantCannotJumpFromD7ToE3AfterE4()
+        {
+            Assert.IsTrue(Game.TryMove(new Point(6, 4), new Point(4, 4))); // e2 to e4
+
+            Assert.IsFalse(Game.TryMove(new Point(1, 3), new Point(5, 4))); // d7 to e3
+            Assert.IsNotNull(Game.Board.GetPiece(1, 3));
+            Assert.IsNull(Game.Board.GetPiece(5, 4));
         }
 
     }

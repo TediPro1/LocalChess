@@ -341,9 +341,15 @@ namespace LocalChess.Data.Entities
             if (enPassantTarget == null)
                 return false;
 
+            int direction = piece.Color == PieceColor.White ? -1 : 1;
+            ChessPiece? adjacentPiece = Board.GetPiece(from.X, to.Y);
+
             return to == enPassantTarget.Value &&
+                   to.X - from.X == direction &&
                    Math.Abs(to.Y - from.Y) == 1 &&
-                   Board.GetPiece(to.X, to.Y) == null;
+                   Board.GetPiece(to.X, to.Y) == null &&
+                   adjacentPiece?.Type == PieceType.Pawn &&
+                   adjacentPiece.Color != piece.Color;
         }
         private bool IsCastlingMove(ChessPiece piece, Point from, Point to)
         {
